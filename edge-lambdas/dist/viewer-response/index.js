@@ -149,7 +149,7 @@ const addCacheHeader = (response) => {
  */
 const addRobotsHeader = (response, config) => {
     let headers = response.headers;
-    if (config.environment === 'staging') {
+    if (config.blockRobots === 'true') {
         headers = setHeader(headers, 'X-Robots-Tag', 'noindex, nofollow');
     }
     return Object.assign(Object.assign({}, response), { headers });

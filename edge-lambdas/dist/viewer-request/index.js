@@ -175,11 +175,8 @@ function getTreeHash(host, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
         // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.example.com
         // Preview name is either a sanitized branch name or it follows the preview-[treeHash] pattern
-        // We only run preview deploys in staging
         let previewName;
-        if (config.environment === 'staging' &&
-            config.previewDeploymentPostfix &&
-            host.includes(config.previewDeploymentPostfix)) {
+        if (config.previewDeploymentPostfix && host.includes(config.previewDeploymentPostfix)) {
             previewName = host.split('.')[0];
             // If the request is for a specific tree hash preview deployment, we use that hash
             const previewHash = getPreviewHash(previewName);

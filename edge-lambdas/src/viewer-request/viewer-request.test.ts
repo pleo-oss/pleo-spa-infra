@@ -8,15 +8,15 @@ const MockedS3 = S3 as jest.MockedClass<typeof S3>
 beforeEach(() => jest.resetAllMocks())
 
 describe(`Viewer request Lambda@Edge`, () => {
-    test(`When requesting app.example.com 
-          it modifies the request to fetch the latest production HTML
+    test(`
+        When requesting app.example.com 
+        it modifies the request to fetch the latest master branch HTML
     `, async () => {
         const treeHash = '3b6197b16baa26057a25fcd5d60a64c4c0765d18'
         const s3 = mockGetObject(treeHash)
 
         const handler = getHandler(
             {
-                environment: 'production',
                 originBucketName: 'test-origin-bucket-prod',
                 originBucketRegion: 'eu-west-1'
             },
@@ -40,14 +40,49 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
     })
 
-    test(`When requesting app.staging.example.com
-            it modifies the request to fetch the latest staging HTML
-      `, async () => {
+    test(`
+        When requesting app.example.com 
+        and a custom default branch name is configured
+        it modifies the request to fetch the latest default branch HTML
+    `, async () => {
+        const treeHash = '3b6197b16baa26057a25fcd5d60a64c4c0765d18'
+        const s3 = mockGetObject(treeHash)
+
+        const handler = getHandler(
+            {
+                originBucketName: 'test-origin-bucket-prod',
+                originBucketRegion: 'eu-west-1',
+                defaultBranchName: 'main'
+            },
+            s3
+        )
+        const event = mockRequestEvent({host: 'app.example.com'})
+
+        const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: `deploys/main`
+        })
+        expect(response).toEqual(
+            requestFromEvent(
+                mockRequestEvent({
+                    host: 'app.example.com',
+                    uri: `/html/${treeHash}/index.html`
+                })
+            )
+        )
+    })
+
+    test(`
+        When requesting app.staging.example.com
+        and preview deployment postfix is set
+        it modifies the request to fetch the latest default branch HTML
+    `, async () => {
         const treeHash = '75703e9524292bfa57c259e0621c3ed6b53bfcf2'
         const s3 = mockGetObject(treeHash)
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'
@@ -72,15 +107,15 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
     })
 
-    test(`When requesting e.g. my-feature.app.staging.example.com
-            it modifies the request to fetch the latest HTML for that branch
-      `, async () => {
+    test(`
+        When requesting e.g. my-feature.app.staging.example.com
+        it modifies the request to fetch the latest HTML for my-feature branch
+    `, async () => {
         const treeHash = '75703e9524292bfa57c259e0621c3ed6b53bfcf2'
         const s3 = mockGetObject(treeHash)
 
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'
@@ -110,7 +145,6 @@ describe(`Viewer request Lambda@Edge`, () => {
         const s3 = mockGetObject(treeHash)
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'
@@ -143,7 +177,6 @@ describe(`Viewer request Lambda@Edge`, () => {
         const s3 = mockGetObject(treeHash)
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'
@@ -171,15 +204,15 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
     })
 
-    test(`When requesting a specific version i.e. preview-{treeHash}.app.staging.example.com
-            it modifies the request to fetch the HTML for that tree hash
-      `, async () => {
+    test(`
+        When requesting a specific version i.e. preview-{treeHash}.app.staging.example.com
+        it modifies the request to fetch the HTML for that tree hash
+    `, async () => {
         const treeHash = 'c43d9be8eaa4f0bb422d1c171769f674c5a1dd1c'
         const requestedTreeHash = '83436472715537da0ee129412de8df6bc1287500'
         const s3 = mockGetObject(treeHash)
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'
@@ -204,9 +237,10 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
     })
 
-    test(`When requesting preview of an unknown branch,
-            it requests the non-existing file to a trigger 404 error
-      `, async () => {
+    test(`
+        When requesting a preview of an unknown branch,
+        it requests the non-existing file to trigger a 404 error
+    `, async () => {
         const s3 = new MockedS3()
         s3.getObject = jest.fn().mockReturnValue({
             promise: jest.fn().mockRejectedValue(new Error('network error, yo'))
@@ -215,7 +249,6 @@ describe(`Viewer request Lambda@Edge`, () => {
 
         const handler = getHandler(
             {
-                environment: 'staging',
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
                 previewDeploymentPostfix: '.app.staging.example.com'

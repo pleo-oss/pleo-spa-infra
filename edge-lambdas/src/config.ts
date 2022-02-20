@@ -11,10 +11,10 @@ export function getConfig(): Config {
 }
 
 export type Config = {
-    environment: 'staging' | 'production'
     originBucketName: string
     originBucketRegion: string
     previewDeploymentPostfix?: string
     defaultBranchName?: string
     blockIframes?: string
+    blockRobots?: string
 }

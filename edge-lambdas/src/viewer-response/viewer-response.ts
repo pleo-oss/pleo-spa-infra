@@ -65,7 +65,7 @@ export const addCacheHeader = (response: CloudFrontResponse) => {
 export const addRobotsHeader = (response: CloudFrontResponse, config: Config) => {
     let headers = response.headers
 
-    if (config.environment === 'staging') {
+    if (config.blockRobots === 'true') {
         headers = setHeader(headers, 'X-Robots-Tag', 'noindex, nofollow')
     }
 
