@@ -4,7 +4,6 @@ import {getHandler} from './viewer-response'
 describe(`Viewer response Lambda@Edge`, () => {
     test(`Adds security and cache control custom headers to a response object for prod`, async () => {
         const handler = getHandler({
-            environment: 'production',
             originBucketName: 'test-cursor-bucket-prod',
             originBucketRegion: 'eu-west-1'
         })
@@ -21,12 +20,12 @@ describe(`Viewer response Lambda@Edge`, () => {
         })
     })
 
-    test(`Adds robots custom headers to a response object in staging`, async () => {
+    test(`Adds robots custom headers to a response object if configured`, async () => {
         const handler = getHandler({
-            environment: 'staging',
             originBucketName: 'test-origin-bucket-staging',
             originBucketRegion: 'eu-west-1',
-            previewDeploymentPostfix: '.app.staging.example.com'
+            previewDeploymentPostfix: '.app.staging.example.com',
+            blockRobots: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com'})
@@ -45,7 +44,6 @@ describe(`Viewer response Lambda@Edge`, () => {
 
     test(`Adds security with frame blocking custom header to a response if configured`, async () => {
         const handler = getHandler({
-            environment: 'production',
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
