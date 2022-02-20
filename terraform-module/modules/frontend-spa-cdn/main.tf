@@ -12,7 +12,7 @@ resource "aws_cloudfront_distribution" "this" {
   price_class         = var.cloudfront_price_class
   comment             = "${var.app_name} - ${var.domain_name}"
 
-  aliases = lower(var.env) == "production" ? [var.domain_name] : [var.domain_name, "*.${var.domain_name}"]
+  # aliases = lower(var.env) == "production" ? [var.domain_name] : [var.domain_name, "*.${var.domain_name}"]
 
   # The distribution is served by the origin S3 bucket accessible only via OAI
   origin {
