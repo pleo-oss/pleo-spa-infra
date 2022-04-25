@@ -5,7 +5,7 @@
 💡 A Terraform Module which creates a complete serving infrastructure for a
 Single Page Application on AWS.
 
-👨‍🔧 This repo is lovingly stewarded by Pleo Frontend Ops.
+👨‍🔧 This repo is lovingly stewarded by Pleo's Web Core team.
 
 🐛 Issues should be reported
 [in the repo](https://github.com/pleo-oss/pleo-spa-infra/issues) or via
