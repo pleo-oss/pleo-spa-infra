@@ -28,8 +28,6 @@ module "my_spa" {
   subdomain     = "my-spa"
   bucket_prefix = "my-org"
 
-  edge_lambdas_version = "0.0.2"
-
   env         = "staging"
   zone_domain = "example.com"
   providers = {
