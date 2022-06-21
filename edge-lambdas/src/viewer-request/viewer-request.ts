@@ -16,9 +16,9 @@ const DEFAULT_BRANCH_DEFAULT_NAME = 'master'
  * This lambda runs for every request and modifies the request object before it's used to fetch the resource from the origin (S3 bucket).
  * It calculates which HTML file the request should respond with based on the host name specified by the request, and sets that file as the URI of the request.
  * The options are:
- * - HTML for latest tree hash on the main branch - e.g. app.staging.pleo.io and app.pleo.io
- * - HTML for latest tree hash on a feature branch (branch preview deployment) - e.g. my-branch.staging.pleo.io
- * - HTML for a specific tree hash (hash preview deployment) - e.g. preview-b104213fc39ecca4f237a7bd6544d428ad46ec7e.app.staging.pleo.io
+ * - HTML for latest tree hash on the main branch - e.g. app.staging.example.com and app.example.com
+ * - HTML for latest tree hash on a feature branch (branch preview deployment) - e.g. my-branch.staging.example.com
+ * - HTML for a specific tree hash (hash preview deployment) - e.g. preview-b104213fc39ecca4f237a7bd6544d428ad46ec7e.app.staging.example.com
  */
 export function getHandler(config: Config, s3: S3) {
     const handler: CloudFrontRequestHandler = async (event) => {
@@ -76,16 +76,11 @@ async function getUri(request: CloudFrontRequest, config: Config, s3: S3) {
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
 // tree hash for a branch requested (preview or main), which we fetch from cursor files stored in S3
 async function getTreeHash(host: string, config: Config, s3: S3) {
-    // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.pleo.io
+    // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.example.com
     // Preview name is either a sanitized branch name or it follows the preview-[treeHash] pattern
-    // We only run preview deploys in staging
     let previewName
 
-    if (
-        config.environment === 'staging' &&
-        config.previewDeploymentPostfix &&
-        host.includes(config.previewDeploymentPostfix)
-    ) {
+    if (config.previewDeploymentPostfix && host.includes(config.previewDeploymentPostfix)) {
         previewName = host.split('.')[0]
 
         // If the request is for a specific tree hash preview deployment, we use that hash
@@ -102,7 +97,7 @@ async function getTreeHash(host: string, config: Config, s3: S3) {
     return fetchDeploymentTreeHash(branchName, config, s3)
 }
 
-// We serve a preview for each repo tree hash at e.g.preview-[treeHash].app.staging.pleo.io
+// We serve a preview for each repo tree hash at e.g.preview-[treeHash].app.staging.example.com
 // If the preview name matches that pattern, we assume it's a tree hash preview
 function getPreviewHash(previewName?: string) {
     const matchHash = /^preview-(?<hash>[a-z0-9]{40})$/.exec(previewName || '')

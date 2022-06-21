@@ -104,6 +104,7 @@ function getHeader(request, headerName) {
     var _a, _b, _c;
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
+const TRANSLATION_CURSOR_HEADER = 'Translation-Cursor';
 
 ;// CONCATENATED MODULE: ./src/viewer-request/viewer-request.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -142,6 +143,15 @@ function getHandler(config, s3) {
             // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
             // the configured custom error page
             request.uri = '/404';
+        }
+        try {
+            let headers = request.headers;
+            const translationCursor = yield getTranslationCursor(s3, config);
+            headers = setHeader(headers, TRANSLATION_CURSOR_HEADER, translationCursor);
+            request.headers = headers;
+        }
+        catch (e) {
+            console.error(e);
         }
         return request;
     });
@@ -214,6 +224,22 @@ function fetchDeploymentTreeHash(branch, config, s3) {
         return response.Body.toString('utf-8').trim();
     });
 }
+const getTranslationCursor = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const s3Params = {
+            Bucket: config.originBucketName,
+            Key: `translation-deploy/latest`
+        };
+        const response = yield s3.getObject(s3Params).promise();
+        if (!response.Body) {
+            throw new Error(`Latest cursor file not found `);
+        }
+        return response.Body.toString('utf-8').trim();
+    }
+    catch (e) {
+        return 'default';
+    }
+});
 
 ;// CONCATENATED MODULE: ./src/viewer-request/index.ts
 

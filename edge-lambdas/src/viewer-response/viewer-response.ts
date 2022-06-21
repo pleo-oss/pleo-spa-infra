@@ -21,10 +21,7 @@ export function getHandler(config: Config) {
         let response = event.Records[0].cf.response
         const request = event.Records[0].cf.request
 
-        console.log('response', response)
-        console.log('request', request)
         const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || 'default'
-        console.log('translationCursor', translationCursor)
 
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
@@ -78,7 +75,7 @@ export const addCacheHeader = (response: CloudFrontResponse) => {
 export const addRobotsHeader = (response: CloudFrontResponse, config: Config) => {
     let headers = response.headers
 
-    if (config.environment === 'staging') {
+    if (config.blockRobots === 'true') {
         headers = setHeader(headers, 'X-Robots-Tag', 'noindex, nofollow')
     }
 
@@ -107,7 +104,7 @@ export const addPreloadHeaders = (
     let headers = response.headers
     const urlParams = new URLSearchParams(request.querystring)
     const language = urlParams.get('lang') || extractCookie(request.headers, 'x-pleo-language')
-    console.log('language', language)
+
     headers = setHeader(
         headers,
         'Link',
@@ -120,7 +117,7 @@ export const addPreloadHeaders = (
 const extractCookie = (headers: CloudFrontHeaders, cname: string) => {
     const cookies = headers['cookie']
     if (!cookies) {
-        console.log("extract_cookie(): no 'Cookie:' headers in request")
+        console.log("extractCookie(): no 'Cookie:' headers in request")
         return null
     }
 

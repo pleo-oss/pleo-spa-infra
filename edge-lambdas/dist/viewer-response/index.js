@@ -85,6 +85,7 @@ function getHeader(request, headerName) {
     var _a, _b, _c;
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
+const TRANSLATION_CURSOR_HEADER = 'Translation-Cursor';
 
 ;// CONCATENATED MODULE: ./src/viewer-response/viewer-response.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -109,9 +110,13 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 function getHandler(config) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         let response = event.Records[0].cf.response;
+        const request = event.Records[0].cf.request;
+        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || 'default';
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
+        response = addCookieHeaders(response, translationCursor);
+        response = addPreloadHeaders(response, request, translationCursor);
         return response;
     });
     return handler;
@@ -153,6 +158,42 @@ const addRobotsHeader = (response, config) => {
         headers = setHeader(headers, 'X-Robots-Tag', 'noindex, nofollow');
     }
     return Object.assign(Object.assign({}, response), { headers });
+};
+/**
+ * Adds cookie HTTP header to the response to prevent indexing by bots (only in staging)
+ */
+const addCookieHeaders = (response, translationCursor) => {
+    let headers = response.headers;
+    headers = setHeader(headers, 'Set-Cookie', `translation-hash=${translationCursor}`);
+    return Object.assign(Object.assign({}, response), { headers });
+};
+/**
+ * Adds cookie HTTP header to the response to prevent indexing by bots (only in staging)
+ */
+const addPreloadHeaders = (response, request, translationCursor) => {
+    let headers = response.headers;
+    const urlParams = new URLSearchParams(request.querystring);
+    const language = urlParams.get('lang') || extractCookie(request.headers, 'x-pleo-language');
+    headers = setHeader(headers, 'Link', ` </static/translations/${language}/messages.${translationCursor}.js>; rel="preload"; as="script"`);
+    return Object.assign(Object.assign({}, response), { headers });
+};
+const extractCookie = (headers, cname) => {
+    const cookies = headers['cookie'];
+    if (!cookies) {
+        console.log("extractCookie(): no 'Cookie:' headers in request");
+        return null;
+    }
+    for (let n = cookies.length; n--;) {
+        const cval = cookies[n].value.split(/;\ /);
+        const vlen = cval.length;
+        for (var m = vlen; m--;) {
+            const cookie_kv = cval[m].split('=');
+            if (cookie_kv[0] === cname) {
+                return cookie_kv[1];
+            }
+        }
+    }
+    return null;
 };
 
 ;// CONCATENATED MODULE: ./src/viewer-response/index.ts
