@@ -22,17 +22,18 @@ module "cdn" {
 ```
 
 <!-- BEGIN_TF_DOCS -->
+
 #### Requirements
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.8.0 |
+| Name                                                   | Version   |
+| ------------------------------------------------------ | --------- |
+| <a name="requirement_aws"></a> [aws](#requirement_aws) | ~> 4.20.1 |
 
 #### Providers
 
-| Name | Version |
-|------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 3.8.0 |
+| Name                                             | Version   |
+| ------------------------------------------------ | --------- |
+| <a name="provider_aws"></a> [aws](#provider_aws) | ~> 4.20.1 |
 
 #### Modules
 
@@ -40,29 +41,30 @@ No modules.
 
 #### Resources
 
-| Name | Type |
-|------|------|
+| Name                                                                                                                                    | Type     |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | [aws_cloudfront_distribution.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution) | resource |
-| [aws_s3_bucket_object.object](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_object) | resource |
+| [aws_s3_bucket_object.object](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_object)             | resource |
 
 #### Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_acm_certificate_arn"></a> [acm\_certificate\_arn](#input\_acm\_certificate\_arn) | Amazon Resource Name of the ACM certificate | `string` | n/a | yes |
-| <a name="input_app_name"></a> [app\_name](#input\_app\_name) | Name of the app (kebab-case) | `string` | n/a | yes |
-| <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | The S3 origin bucket name. | `string` | n/a | yes |
-| <a name="input_bucket_regional_domain_name"></a> [bucket\_regional\_domain\_name](#input\_bucket\_regional\_domain\_name) | The S3 origin bucket region-specific domain name. | `string` | n/a | yes |
-| <a name="input_cloudfront_access_identity_path"></a> [cloudfront\_access\_identity\_path](#input\_cloudfront\_access\_identity\_path) | A shortcut to the full path for the origin access identity. | `string` | n/a | yes |
-| <a name="input_cloudfront_price_class"></a> [cloudfront\_price\_class](#input\_cloudfront\_price\_class) | CloudFront distribution price class | `string` | `"PriceClass_100"` | no |
-| <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | App domain name | `string` | n/a | yes |
-| <a name="input_edge_lambdas"></a> [edge\_lambdas](#input\_edge\_lambdas) | List of Lambda@Edge lambdas to associate | <pre>list(object({<br>    event_type = string<br>    arn        = string<br>  }))</pre> | n/a | yes |
-| <a name="input_env"></a> [env](#input\_env) | Environment (production/staging) | `string` | n/a | yes |
+| Name                                                                                                                           | Description                                                 | Type                                                                      | Default            | Required |
+| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------ | :------: |
+| <a name="input_acm_certificate_arn"></a> [acm_certificate_arn](#input_acm_certificate_arn)                                     | Amazon Resource Name of the ACM certificate                 | `string`                                                                  | n/a                |   yes    |
+| <a name="input_app_name"></a> [app_name](#input_app_name)                                                                      | Name of the app (kebab-case)                                | `string`                                                                  | n/a                |   yes    |
+| <a name="input_bucket_name"></a> [bucket_name](#input_bucket_name)                                                             | The S3 origin bucket name.                                  | `string`                                                                  | n/a                |   yes    |
+| <a name="input_bucket_regional_domain_name"></a> [bucket_regional_domain_name](#input_bucket_regional_domain_name)             | The S3 origin bucket region-specific domain name.           | `string`                                                                  | n/a                |   yes    |
+| <a name="input_cloudfront_access_identity_path"></a> [cloudfront_access_identity_path](#input_cloudfront_access_identity_path) | A shortcut to the full path for the origin access identity. | `string`                                                                  | n/a                |   yes    |
+| <a name="input_cloudfront_price_class"></a> [cloudfront_price_class](#input_cloudfront_price_class)                            | CloudFront distribution price class                         | `string`                                                                  | `"PriceClass_100"` |    no    |
+| <a name="input_domain_name"></a> [domain_name](#input_domain_name)                                                             | App domain name                                             | `string`                                                                  | n/a                |   yes    |
+| <a name="input_edge_lambdas"></a> [edge_lambdas](#input_edge_lambdas)                                                          | List of Lambda@Edge lambdas to associate                    | <pre>list(object({<br> event_type = string<br> arn = string<br> }))</pre> | n/a                |   yes    |
+| <a name="input_env"></a> [env](#input_env)                                                                                     | Environment (production/staging)                            | `string`                                                                  | n/a                |   yes    |
 
 #### Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_cf_domain_name"></a> [cf\_domain\_name](#output\_cf\_domain\_name) | n/a |
-| <a name="output_cf_hosted_zone_id"></a> [cf\_hosted\_zone\_id](#output\_cf\_hosted\_zone\_id) | n/a |
+| Name                                                                                   | Description |
+| -------------------------------------------------------------------------------------- | ----------- |
+| <a name="output_cf_domain_name"></a> [cf_domain_name](#output_cf_domain_name)          | n/a         |
+| <a name="output_cf_hosted_zone_id"></a> [cf_hosted_zone_id](#output_cf_hosted_zone_id) | n/a         |
+
 <!-- END_TF_DOCS -->

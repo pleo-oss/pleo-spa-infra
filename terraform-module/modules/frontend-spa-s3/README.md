@@ -23,17 +23,18 @@ module "s3" {
 ```
 
 <!-- BEGIN_TF_DOCS -->
+
 #### Requirements
 
-| Name | Version |
-|------|---------|
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.8.0 |
+| Name                                                   | Version   |
+| ------------------------------------------------------ | --------- |
+| <a name="requirement_aws"></a> [aws](#requirement_aws) | ~> 4.20.1 |
 
 #### Providers
 
-| Name | Version |
-|------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 3.8.0 |
+| Name                                             | Version   |
+| ------------------------------------------------ | --------- |
+| <a name="provider_aws"></a> [aws](#provider_aws) | ~> 4.20.1 |
 
 #### Modules
 
@@ -41,32 +42,33 @@ No modules.
 
 #### Resources
 
-| Name | Type |
-|------|------|
-| [aws_cloudfront_origin_access_identity.oai](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_identity) | resource |
-| [aws_iam_policy.read_write_origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
-| [aws_s3_bucket.origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) | resource |
-| [aws_s3_bucket_policy.oai_read](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy) | resource |
-| [aws_s3_bucket_public_access_block.origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block) | resource |
-| [aws_iam_policy_document.read_write_origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.s3_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| Name                                                                                                                                                       | Type        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| [aws_cloudfront_origin_access_identity.oai](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_identity) | resource    |
+| [aws_iam_policy.read_write_origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy)                                 | resource    |
+| [aws_s3_bucket.origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket)                                              | resource    |
+| [aws_s3_bucket_policy.oai_read](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy)                              | resource    |
+| [aws_s3_bucket_public_access_block.origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block)      | resource    |
+| [aws_iam_policy_document.read_write_origin](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)            | data source |
+| [aws_iam_policy_document.s3_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document)                    | data source |
 
 #### Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_app_name"></a> [app\_name](#input\_app\_name) | Name of the app (kebab-case) | `string` | n/a | yes |
-| <a name="input_bucket_prefix"></a> [bucket\_prefix](#input\_bucket\_prefix) | Prefix for the bucket name. Since S3 bucket live in global scope, it's good prefix it with e.g. your org name | `string` | n/a | yes |
-| <a name="input_env"></a> [env](#input\_env) | Environment (production/staging) | `string` | n/a | yes |
+| Name                                                                     | Description                                                                                                   | Type     | Default | Required |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | -------- | ------- | :------: |
+| <a name="input_app_name"></a> [app_name](#input_app_name)                | Name of the app (kebab-case)                                                                                  | `string` | n/a     |   yes    |
+| <a name="input_bucket_prefix"></a> [bucket_prefix](#input_bucket_prefix) | Prefix for the bucket name. Since S3 bucket live in global scope, it's good prefix it with e.g. your org name | `string` | n/a     |   yes    |
+| <a name="input_env"></a> [env](#input_env)                               | Environment (production/staging)                                                                              | `string` | n/a     |   yes    |
 
 #### Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_bucket_arn"></a> [bucket\_arn](#output\_bucket\_arn) | n/a |
-| <a name="output_bucket_deployer_iam_policy"></a> [bucket\_deployer\_iam\_policy](#output\_bucket\_deployer\_iam\_policy) | n/a |
-| <a name="output_bucket_name"></a> [bucket\_name](#output\_bucket\_name) | n/a |
-| <a name="output_bucket_region"></a> [bucket\_region](#output\_bucket\_region) | n/a |
-| <a name="output_bucket_regional_domain_name"></a> [bucket\_regional\_domain\_name](#output\_bucket\_regional\_domain\_name) | n/a |
-| <a name="output_cloudfront_access_identity_path"></a> [cloudfront\_access\_identity\_path](#output\_cloudfront\_access\_identity\_path) | n/a |
+| Name                                                                                                                             | Description |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| <a name="output_bucket_arn"></a> [bucket_arn](#output_bucket_arn)                                                                | n/a         |
+| <a name="output_bucket_deployer_iam_policy"></a> [bucket_deployer_iam_policy](#output_bucket_deployer_iam_policy)                | n/a         |
+| <a name="output_bucket_name"></a> [bucket_name](#output_bucket_name)                                                             | n/a         |
+| <a name="output_bucket_region"></a> [bucket_region](#output_bucket_region)                                                       | n/a         |
+| <a name="output_bucket_regional_domain_name"></a> [bucket_regional_domain_name](#output_bucket_regional_domain_name)             | n/a         |
+| <a name="output_cloudfront_access_identity_path"></a> [cloudfront_access_identity_path](#output_cloudfront_access_identity_path) | n/a         |
+
 <!-- END_TF_DOCS -->
