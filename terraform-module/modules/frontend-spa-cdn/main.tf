@@ -1,6 +1,6 @@
 locals {
-  s3_origin_id   = "${var.app_name}-s3-origin"
-  error_page_key = "html/404.html"
+  s3_origin_id    = "${var.app_name}-s3-origin"
+  error_page_key  = "html/404.html"
   error_page_file = "${path.module}/404.html"
 }
 
@@ -108,8 +108,8 @@ resource "aws_cloudfront_distribution" "this" {
 
 # Upload a custom 404 error page so it's available for the CDN
 resource "aws_s3_bucket_object" "object" {
-  bucket = var.bucket_name
-  key    = local.error_page_key
-  source = local.error_page_file
+  bucket       = var.bucket_name
+  key          = local.error_page_key
+  source       = local.error_page_file
   content_type = "text/html"
 }
