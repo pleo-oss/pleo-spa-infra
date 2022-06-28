@@ -39,7 +39,7 @@ Note that there are two AWS providers, since we need to access two AWS regions
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.8.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 3.75.2 |
 | <a name="requirement_github"></a> [github](#requirement\_github) | ~> 4.0 |
 
 #### Providers
@@ -47,7 +47,7 @@ Note that there are two AWS providers, since we need to access two AWS regions
 | Name | Version |
 |------|---------|
 | <a name="provider_archive"></a> [archive](#provider\_archive) | n/a |
-| <a name="provider_aws.global"></a> [aws.global](#provider\_aws.global) | ~> 3.8.0 |
+| <a name="provider_aws.global"></a> [aws.global](#provider\_aws.global) | >= 3.75.2 |
 | <a name="provider_local"></a> [local](#provider\_local) | n/a |
 
 #### Modules
@@ -60,7 +60,7 @@ No modules.
 |------|------|
 | [aws_lambda_function.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
 | [local_file.lambda_config](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
-| [local_file.lambda_source](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_sensitive_file.lambda_source](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/sensitive_file) | resource |
 | [archive_file.lambda](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/data-sources/file) | data source |
 
 #### Inputs

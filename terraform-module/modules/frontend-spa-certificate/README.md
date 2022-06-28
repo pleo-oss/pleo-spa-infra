@@ -33,14 +33,14 @@ Note that there are two AWS providers, since we need to access two AWS regions
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.8.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 3.75.2 |
 
 #### Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 3.8.0 |
-| <a name="provider_aws.global"></a> [aws.global](#provider\_aws.global) | ~> 3.8.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 3.75.2 |
+| <a name="provider_aws.global"></a> [aws.global](#provider\_aws.global) | >= 3.75.2 |
 
 #### Modules
 
