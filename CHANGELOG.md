@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/pleo-oss/pleo-spa-infra/compare/v1.1.0...v1.2.0) (2022-06-28)
+
+
+### Features
+
+* Upgrade AWS provider to v3.75.2 ([#7](https://github.com/pleo-oss/pleo-spa-infra/issues/7)) ([710c52b](https://github.com/pleo-oss/pleo-spa-infra/commit/710c52bc0bb6bab370167193add661b4bee36ca5))
+
 # [1.1.0](https://github.com/pleo-oss/pleo-spa-infra/compare/v1.0.0...v1.1.0) (2022-02-20)
 
 
