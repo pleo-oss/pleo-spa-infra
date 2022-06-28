@@ -3,10 +3,10 @@ locals {
 }
 
 module "s3" {
-  source   = "./modules/frontend-spa-s3"
-  app_name = var.app_name
+  source        = "./modules/frontend-spa-s3"
+  app_name      = var.app_name
   bucket_prefix = var.bucket_prefix
-  env      = var.env
+  env           = var.env
 }
 
 module "lambda_role" {

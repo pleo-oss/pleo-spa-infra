@@ -49,7 +49,7 @@ Note that there are two AWS providers, since we need to access two AWS regions
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.8.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 3.75.2 |
 
 #### Providers
 

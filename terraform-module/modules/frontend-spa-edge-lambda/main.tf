@@ -1,9 +1,10 @@
 # Lambda@Edge lambdas used by the CloudFront distribution's default caching behaviour
 # AWS requires edge lambdas to be deployed to the global region (us-east-1).
 
-resource "local_file" "lambda_source" {
-  sensitive_content = file("${path.module}/../../../edge-lambdas/dist/${var.event_type}/index.js")
-  filename          = "${path.root}/dist/${var.app_name}/${var.event_type}/index.js"
+# Using local_sensitive_file to avoid Terraform printing the verbose content of the source file
+resource "local_sensitive_file" "lambda_source" {
+  content  = file("${path.module}/../../../edge-lambdas/dist/${var.event_type}/index.js")
+  filename = "${path.root}/dist/${var.app_name}/${var.event_type}/index.js"
 }
 
 resource "local_file" "lambda_config" {

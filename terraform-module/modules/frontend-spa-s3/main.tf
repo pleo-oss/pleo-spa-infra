@@ -10,12 +10,16 @@
 
 resource "aws_s3_bucket" "origin" {
   bucket = "${var.bucket_prefix}-${var.app_name}-origin-${lower(var.env)}"
-  acl    = "private"
 
   tags = {
     Name        = "${var.app_name} Origin Bucket ${var.env}"
     Environment = var.env
   }
+}
+
+resource "aws_s3_bucket_acl" "origin" {
+  bucket = aws_s3_bucket.origin.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_public_access_block" "origin" {
