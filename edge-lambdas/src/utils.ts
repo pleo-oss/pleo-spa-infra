@@ -32,4 +32,4 @@ export function getHeader(request: CloudFrontRequest, headerName: string): strin
     return request.headers?.[headerName.toLowerCase()]?.[0]?.value
 }
 
-export const TRANSLATION_CURSOR_HEADER = 'Translation-Cursor'
+export const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor'

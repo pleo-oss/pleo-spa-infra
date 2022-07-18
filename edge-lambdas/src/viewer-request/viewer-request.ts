@@ -25,20 +25,20 @@ export function getHandler(config: Config, s3: S3) {
         const request = event.Records[0].cf.request
 
         try {
-            // We instruct the CDN to return a file that corresponds to the tree hash requested
-            request.uri = await getUri(request, config, s3)
-        } catch (e) {
-            console.error(e)
-            // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-            // the configured custom error page
-            request.uri = '/404'
-        }
+            // Get URI and translation cursor in parralel to avoid the double network penalty
+            const [uri, translationCursor] = await Promise.all([
+                getUriWith404(request, config, s3),
+                getTranslationCursor(s3, config)
+            ])
 
-        try {
-            let headers = request.headers
-            const translationCursor = await getTranslationCursor(s3, config)
-            headers = setHeader(headers, TRANSLATION_CURSOR_HEADER, translationCursor)
-            request.headers = headers
+            // We instruct the CDN to return a file that corresponds to the tree hash requested
+            request.uri = uri
+
+            request.headers = setHeader(
+                request.headers,
+                TRANSLATION_CURSOR_HEADER,
+                translationCursor
+            )
         } catch (e) {
             console.error(e)
         }
@@ -70,6 +70,18 @@ async function getUri(request: CloudFrontRequest, config: Config, s3: S3) {
     const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html'
 
     return path.join('/html', treeHash, filePath)
+}
+
+// Calls getUri function, but returns with /404 if any error
+function getUriWith404(request: CloudFrontRequest, config: Config, s3: S3) {
+    try {
+        return getUri(request, config, s3)
+    } catch (e) {
+        // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+        // the configured custom error page
+        request.uri = '/404'
+        throw e
+    }
 }
 
 // We use repository tree hash to identify the version of the HTML served.
@@ -121,6 +133,7 @@ async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
     return response.Body.toString('utf-8').trim()
 }
 
+// Get the latest translation cursor file from S3 bucket
 const getTranslationCursor = async (s3: S3, config: Config) => {
     try {
         const s3Params = {
