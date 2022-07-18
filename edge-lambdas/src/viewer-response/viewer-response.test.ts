@@ -13,7 +13,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             headers: {
                 ...securityHeaders,
                 ...cacheControlHeaders,
-                ...defaultHeaders
+                ...defaultHeaders,
+                ...getHeaderBasedOnHash()
             },
             status: '200',
             statusDescription: 'OK'
@@ -35,6 +36,7 @@ describe(`Viewer response Lambda@Edge`, () => {
                 ...securityHeaders,
                 ...defaultHeaders,
                 ...cacheControlHeaders,
+                ...getHeaderBasedOnHash(),
                 'x-robots-tag': [{key: 'X-Robots-Tag', value: 'noindex, nofollow'}]
             },
             status: '200',
@@ -57,7 +59,85 @@ describe(`Viewer response Lambda@Edge`, () => {
                 ...securityHeaders,
                 'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
                 ...defaultHeaders,
-                ...cacheControlHeaders
+                ...cacheControlHeaders,
+                ...getHeaderBasedOnHash()
+            },
+            status: '200',
+            statusDescription: 'OK'
+        })
+    })
+
+    test(`Add preload headers and update hash value for 'translation-hash' cookie`, async () => {
+        const hash = '123123'
+        const handler = getHandler({
+            originBucketName: 'test-origin-bucket',
+            originBucketRegion: 'eu-west-1',
+            previewDeploymentPostfix: '.app.example.com',
+            blockIframes: 'true'
+        })
+
+        const event = mockResponseEvent({host: 'app.staging.example.com', hash})
+
+        expect(await handler(event, {} as any, () => {})).toEqual({
+            headers: {
+                ...securityHeaders,
+                'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
+                ...defaultHeaders,
+                ...cacheControlHeaders,
+                ...getHeaderBasedOnHash(hash)
+            },
+            status: '200',
+            statusDescription: 'OK'
+        })
+    })
+
+    test(`Add preload headers and update hash value for 'translation-hash' cookie with da language from cookie 'x-pleo-language'`, async () => {
+        const hash = '123123'
+        const handler = getHandler({
+            originBucketName: 'test-origin-bucket',
+            originBucketRegion: 'eu-west-1',
+            previewDeploymentPostfix: '.app.example.com',
+            blockIframes: 'true'
+        })
+
+        const event = mockResponseEvent({host: 'app.staging.example.com', hash, language: 'da'})
+
+        expect(await handler(event, {} as any, () => {})).toEqual({
+            headers: {
+                ...securityHeaders,
+                'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
+                ...defaultHeaders,
+                ...cacheControlHeaders,
+                ...getHeaderBasedOnHash(hash, 'da')
+            },
+            status: '200',
+            statusDescription: 'OK'
+        })
+    })
+
+    test(`Add preload headers and update hash value for 'translation-hash' cookie with da language from url param 'lang'`, async () => {
+        const hash = '123123'
+        const handler = getHandler({
+            originBucketName: 'test-origin-bucket',
+            originBucketRegion: 'eu-west-1',
+            previewDeploymentPostfix: '.app.example.com',
+            blockIframes: 'true'
+        })
+
+        const event = mockResponseEvent({
+            host: 'app.staging.example.com',
+            hash,
+            language: 'da',
+            isCookieForLanguage: false
+        })
+
+        expect(await handler(event, {} as any, () => {})).toEqual({
+            headers: {
+                ...securityHeaders,
+                'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
+                ...defaultHeaders,
+                ...cacheControlHeaders,
+                ...getHeaderBasedOnHash(hash, 'da')
             },
             status: '200',
             statusDescription: 'OK'
@@ -85,15 +165,41 @@ const cacheControlHeaders = {
     ]
 }
 
+const getHeaderBasedOnHash = (hash = 'default', language = 'en') => {
+    return {
+        'set-cookie': [
+            {
+                key: 'Set-Cookie',
+                value: `translation-hash=${hash}`
+            }
+        ],
+        link:
+            hash !== 'default'
+                ? [
+                      {
+                          key: 'Link',
+                          value: `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`
+                      }
+                  ]
+                : undefined
+    }
+}
+
 // Returns a mock Cloudfront viewer response event with the specified host and URI. See
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/lambda-event-structure.html#lambda-event-structure-response-viewer for
 // more info on the shape of the response events for Edge Lambdas
 export const mockResponseEvent = ({
     host,
-    uri = '/'
+    hash = 'default',
+    uri = '/',
+    language,
+    isCookieForLanguage = true
 }: {
     host: string
+    hash?: string
     uri?: string
+    language?: string
+    isCookieForLanguage?: boolean
 }): CloudFrontResponseEvent => ({
     Records: [
         {
@@ -112,9 +218,24 @@ export const mockResponseEvent = ({
                                 key: 'Host',
                                 value: host
                             }
-                        ]
+                        ],
+                        'x-translation-cursor': [
+                            {
+                                key: 'X-Translation-Cursor',
+                                value: hash
+                            }
+                        ],
+                        cookie:
+                            language && isCookieForLanguage
+                                ? [
+                                      {
+                                          key: 'Cookie',
+                                          value: `x-pleo-language=${language}`
+                                      }
+                                  ]
+                                : undefined
                     },
-                    querystring: '',
+                    querystring: language && !isCookieForLanguage ? `?lang=${language}` : '',
                     clientIp: '203.0.113.178',
                     method: 'GET'
                 },

@@ -3,7 +3,7 @@ import * as path from 'path'
 import {CloudFrontRequest, CloudFrontRequestHandler} from 'aws-lambda'
 import S3 from 'aws-sdk/clients/s3'
 
-import {getHeader, setHeader, TRANSLATION_CURSOR_HEADER} from '../utils'
+import {getHeader, setHeader, TRANSLATION_CURSOR_HEADER, DEFAULT_TRANSLATION_CURSOR} from '../utils'
 import {Config} from '../config'
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master'
@@ -42,7 +42,7 @@ export function getHandler(config: Config, s3: S3) {
             )
         } catch (e) {
             console.error(e)
-            console.log(e.message)
+
             if (e.message && e.message.startsWith(URI_PREFIX_ERROR)) {
                 // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
                 // the configured custom error page
@@ -171,6 +171,6 @@ const getTranslationCursor = async (s3: S3, config: Config) => {
         )
         return response
     } catch (e) {
-        return 'default'
+        return DEFAULT_TRANSLATION_CURSOR
     }
 }

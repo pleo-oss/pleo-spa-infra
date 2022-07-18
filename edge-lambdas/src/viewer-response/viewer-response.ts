@@ -5,7 +5,7 @@ import {
     CloudFrontRequest
 } from 'aws-lambda'
 import {Config} from '../config'
-import {setHeader, getHeader, TRANSLATION_CURSOR_HEADER} from '../utils'
+import {setHeader, getHeader, TRANSLATION_CURSOR_HEADER, DEFAULT_TRANSLATION_CURSOR} from '../utils'
 
 /**
  * Edge Lambda handler triggered on "viewer-response" event, on the default CF behavior of the web app CF distribution.
@@ -21,13 +21,16 @@ export function getHandler(config: Config) {
         let response = event.Records[0].cf.response
         const request = event.Records[0].cf.request
 
-        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || 'default'
+        const translationCursor =
+            getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR
 
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
         response = addCookieHeader(response, translationCursor)
-        response = addPreloadHeader(response, request, translationCursor)
+        if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
+            response = addPreloadHeader(response, request, translationCursor)
+        }
 
         return response
     }

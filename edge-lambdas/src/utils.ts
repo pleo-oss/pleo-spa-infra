@@ -33,3 +33,4 @@ export function getHeader(request: CloudFrontRequest, headerName: string): strin
 }
 
 export const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor'
+export const DEFAULT_TRANSLATION_CURSOR = 'default'
