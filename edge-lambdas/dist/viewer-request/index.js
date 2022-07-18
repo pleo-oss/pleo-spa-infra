@@ -105,6 +105,9 @@ function getHeader(request, headerName) {
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
+// If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
+// If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
+const DEFAULT_TRANSLATION_CURSOR = 'default';
 
 ;// CONCATENATED MODULE: ./src/viewer-request/viewer-request.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -119,6 +122,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master';
+const URI_PREFIX_ERROR = 'URL Error:';
 /**
  * Edge Lambda handler triggered on "viewer-request" event, on the default CF behavior of the web app CF distribution.
  * The default CF behaviour only handles requests for HTML documents and requests for static files (e.g. /, /bills, /settings/accounting etc.)
@@ -137,7 +141,7 @@ function getHandler(config, s3) {
         try {
             // Get URI and translation cursor in parralel to avoid the double network penalty
             const [uri, translationCursor] = yield Promise.all([
-                getUriWith404(request, config, s3),
+                getUriWithErrorPrefix(request, config, s3),
                 getTranslationCursor(s3, config)
             ]);
             // We instruct the CDN to return a file that corresponds to the tree hash requested
@@ -146,6 +150,11 @@ function getHandler(config, s3) {
         }
         catch (e) {
             console.error(e);
+            if (e.message && e.message.startsWith(URI_PREFIX_ERROR)) {
+                // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+                // the configured custom error page
+                request.uri = '/404';
+            }
         }
         return request;
     });
@@ -171,17 +180,17 @@ function getUri(request, config, s3) {
         return external_path_namespaceObject.join('/html', treeHash, filePath);
     });
 }
-// Calls getUri function, but returns with /404 if any error
-function getUriWith404(request, config, s3) {
-    try {
-        return getUri(request, config, s3);
-    }
-    catch (e) {
-        // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-        // the configured custom error page
-        request.uri = '/404';
-        throw e;
-    }
+// Calls getUri function, with error prefix
+function getUriWithErrorPrefix(request, config, s3) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const uri = yield getUri(request, config, s3);
+            return uri;
+        }
+        catch (e) {
+            throw new Error(`${URI_PREFIX_ERROR} ${e.message}`);
+        }
+    });
 }
 // We use repository tree hash to identify the version of the HTML served.
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
@@ -255,7 +264,7 @@ const getTranslationCursor = (s3, config) => __awaiter(void 0, void 0, void 0, f
         return response;
     }
     catch (e) {
-        return 'default';
+        return DEFAULT_TRANSLATION_CURSOR;
     }
 });
 

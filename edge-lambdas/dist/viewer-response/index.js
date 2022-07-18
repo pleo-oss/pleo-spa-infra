@@ -86,6 +86,9 @@ function getHeader(request, headerName) {
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
+// If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
+// If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
+const DEFAULT_TRANSLATION_CURSOR = 'default';
 
 ;// CONCATENATED MODULE: ./src/viewer-response/viewer-response.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -111,12 +114,14 @@ function getHandler(config) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         let response = event.Records[0].cf.response;
         const request = event.Records[0].cf.request;
-        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || 'default';
+        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR;
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
         response = addCookieHeader(response, translationCursor);
-        response = addPreloadHeader(response, request, translationCursor);
+        if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
+            response = addPreloadHeader(response, request, translationCursor);
+        }
         return response;
     });
     return handler;
