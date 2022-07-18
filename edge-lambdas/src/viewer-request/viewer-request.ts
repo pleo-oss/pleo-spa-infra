@@ -7,6 +7,7 @@ import {getHeader, setHeader, TRANSLATION_CURSOR_HEADER} from '../utils'
 import {Config} from '../config'
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master'
+const URI_PREFIX_ERROR = 'URL Error:'
 
 /**
  * Edge Lambda handler triggered on "viewer-request" event, on the default CF behavior of the web app CF distribution.
@@ -27,7 +28,7 @@ export function getHandler(config: Config, s3: S3) {
         try {
             // Get URI and translation cursor in parralel to avoid the double network penalty
             const [uri, translationCursor] = await Promise.all([
-                getUriWith404(request, config, s3),
+                getUriWithErrorPrefix(request, config, s3),
                 getTranslationCursor(s3, config)
             ])
 
@@ -41,6 +42,12 @@ export function getHandler(config: Config, s3: S3) {
             )
         } catch (e) {
             console.error(e)
+            console.log(e.message)
+            if (e.message && e.message.startsWith(URI_PREFIX_ERROR)) {
+                // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+                // the configured custom error page
+                request.uri = '/404'
+            }
         }
 
         return request
@@ -72,15 +79,13 @@ async function getUri(request: CloudFrontRequest, config: Config, s3: S3) {
     return path.join('/html', treeHash, filePath)
 }
 
-// Calls getUri function, but returns with /404 if any error
-function getUriWith404(request: CloudFrontRequest, config: Config, s3: S3) {
+// Calls getUri function, with error prefix
+async function getUriWithErrorPrefix(request: CloudFrontRequest, config: Config, s3: S3) {
     try {
-        return getUri(request, config, s3)
+        const uri = await getUri(request, config, s3)
+        return uri
     } catch (e) {
-        // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-        // the configured custom error page
-        request.uri = '/404'
-        throw e
+        throw new Error(`${URI_PREFIX_ERROR} ${e.message}`)
     }
 }
 

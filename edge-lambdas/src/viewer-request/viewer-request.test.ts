@@ -22,18 +22,27 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.example.com'})
+        const event = mockRequestEvent({host: 'app.example.com', hash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
 
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-prod',
             Key: `deploys/master`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -56,18 +65,27 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.example.com'})
+        const event = mockRequestEvent({host: 'app.example.com', hash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
 
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-prod',
             Key: `deploys/main`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -89,18 +107,27 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.staging.example.com'})
+        const event = mockRequestEvent({host: 'app.staging.example.com', hash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
 
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-staging',
             Key: `deploys/master`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.staging.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -122,18 +149,27 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'my-feature.app.staging.example.com'})
+        const event = mockRequestEvent({host: 'my-feature.app.staging.example.com', hash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
 
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-staging',
             Key: `deploys/my-feature`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -153,19 +189,29 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
         const event = mockRequestEvent({
             host: 'my-feature.app.staging.example.com',
+            hash: treeHash,
             uri: '/iframe.html'
         })
 
         const response = await handler(event, {} as any, () => {})
 
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
+
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-staging',
             Key: `deploys/my-feature`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/iframe.html`
                 })
             )
@@ -185,19 +231,29 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
         const event = mockRequestEvent({
             host: 'my-feature.app.staging.example.com',
+            hash: treeHash,
             uri: '/.well-known/apple-app-site-association'
         })
 
         const response = await handler(event, {} as any, () => {})
 
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
+
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-staging',
             Key: `deploys/my-feature`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
+                    hash: treeHash,
                     uri: `/html/${treeHash}/.well-known/apple-app-site-association`
                 })
             )
@@ -221,16 +277,23 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
 
         const event = mockRequestEvent({
-            host: `preview-${requestedTreeHash}.app.staging.example.com`
+            host: `preview-${requestedTreeHash}.app.staging.example.com`,
+            hash: treeHash
         })
 
         const response = await handler(event, {} as any, () => {})
 
-        expect(s3.getObject).not.toHaveBeenCalled()
+        expect(s3.getObject).toHaveBeenCalledTimes(1)
+
+        expect(s3.getObject).toHaveBeenCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: `preview-${requestedTreeHash}.app.staging.example.com`,
+                    hash: treeHash,
                     uri: `/html/${requestedTreeHash}/index.html`
                 })
             )
@@ -256,20 +319,30 @@ describe(`Viewer request Lambda@Edge`, () => {
             s3
         )
         const event = mockRequestEvent({
-            host: 'what-is-this-branch.app.staging.example.com'
+            host: 'what-is-this-branch.app.staging.example.com',
+            hash: '123'
         })
 
         const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
 
         expect(s3.getObject).toHaveBeenCalledWith({
             Bucket: 'test-origin-bucket-staging',
             Key: `deploys/what-is-this-branch`
         })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-staging',
+            Key: 'translation-deploy/latest'
+        })
+
         expect(response).toEqual(
             requestFromEvent(
                 mockRequestEvent({
                     host: `what-is-this-branch.app.staging.example.com`,
-                    uri: `/404`
+                    uri: `/404`,
+                    hash: '123'
                 })
             )
         )
@@ -290,9 +363,11 @@ const mockGetObject = (returnValue: string) => {
 // more info on the shape of the request events for Edge Lambdas
 const mockRequestEvent = ({
     host,
+    hash,
     uri = '/'
 }: {
     host: string
+    hash: string
     uri?: string
 }): CloudFrontRequestEvent => ({
     Records: [
@@ -323,6 +398,12 @@ const mockRequestEvent = ({
                             {
                                 key: 'accept',
                                 value: '*/*'
+                            }
+                        ],
+                        'x-translation-cursor': [
+                            {
+                                key: 'X-Translation-Cursor',
+                                value: hash
                             }
                         ]
                     },
