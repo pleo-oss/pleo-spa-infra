@@ -117,36 +117,54 @@ function getPreviewHash(previewName?: string) {
 }
 
 /**
- * Fetches a cursor deploy file from the S3 bucket and returns its content (i.e. the current active tree hash
- * for that branch).
+ * Function to get file from S3 Bucket
+ * @param key key for the S3 bucket
+ * @param onEmpty function will be called if file doesn't exist
+ * @param config config object
+ * @param s3 S3 instance
+ * @returns content of the file
  */
-async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
+async function fetchFileFromOriginBucket(key: string, onEmpty: () => {}, config: Config, s3: S3) {
     const s3Params = {
         Bucket: config.originBucketName,
-        Key: `deploys/${branch}`
+        Key: key
     }
     const response = await s3.getObject(s3Params).promise()
     if (!response.Body) {
-        throw new Error(`Cursor file not found for branch=${branch}`)
+        onEmpty()
     }
 
     return response.Body.toString('utf-8').trim()
 }
 
+/**
+ * Fetches a cursor deploy file from the S3 bucket and returns its content (i.e. the current active tree hash
+ * for that branch).
+ */
+async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
+    const response = await fetchFileFromOriginBucket(
+        `deploys/${branch}`,
+        () => {
+            throw new Error(`Cursor file not found for branch=${branch}`)
+        },
+        config,
+        s3
+    )
+    return response
+}
+
 // Get the latest translation cursor file from S3 bucket
 const getTranslationCursor = async (s3: S3, config: Config) => {
     try {
-        const s3Params = {
-            Bucket: config.originBucketName,
-            Key: `translation-deploy/latest`
-        }
-        const response = await s3.getObject(s3Params).promise()
-
-        if (!response.Body) {
-            throw new Error(`Latest cursor file not found `)
-        }
-
-        return response.Body.toString('utf-8').trim()
+        const response = await fetchFileFromOriginBucket(
+            `translation-deploy/latest`,
+            () => {
+                throw new Error(`Latest cursor file not found `)
+            },
+            config,
+            s3
+        )
+        return response
     } catch (e) {
         return 'default'
     }
