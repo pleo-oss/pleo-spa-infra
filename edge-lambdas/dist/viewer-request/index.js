@@ -104,7 +104,7 @@ function getHeader(request, headerName) {
     var _a, _b, _c;
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
-const TRANSLATION_CURSOR_HEADER = 'Translation-Cursor';
+const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
 
 ;// CONCATENATED MODULE: ./src/viewer-request/viewer-request.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -135,20 +135,14 @@ function getHandler(config, s3) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         const request = event.Records[0].cf.request;
         try {
+            // Get URI and translation cursor in parralel to avoid the double network penalty
+            const [uri, translationCursor] = yield Promise.all([
+                getUriWith404(request, config, s3),
+                getTranslationCursor(s3, config)
+            ]);
             // We instruct the CDN to return a file that corresponds to the tree hash requested
-            request.uri = yield getUri(request, config, s3);
-        }
-        catch (e) {
-            console.error(e);
-            // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-            // the configured custom error page
-            request.uri = '/404';
-        }
-        try {
-            let headers = request.headers;
-            const translationCursor = yield getTranslationCursor(s3, config);
-            headers = setHeader(headers, TRANSLATION_CURSOR_HEADER, translationCursor);
-            request.headers = headers;
+            request.uri = uri;
+            request.headers = setHeader(request.headers, TRANSLATION_CURSOR_HEADER, translationCursor);
         }
         catch (e) {
             console.error(e);
@@ -176,6 +170,18 @@ function getUri(request, config, s3) {
         const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
         return external_path_namespaceObject.join('/html', treeHash, filePath);
     });
+}
+// Calls getUri function, but returns with /404 if any error
+function getUriWith404(request, config, s3) {
+    try {
+        return getUri(request, config, s3);
+    }
+    catch (e) {
+        // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+        // the configured custom error page
+        request.uri = '/404';
+        throw e;
+    }
 }
 // We use repository tree hash to identify the version of the HTML served.
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
@@ -208,33 +214,45 @@ function getPreviewHash(previewName) {
     return (_a = matchHash === null || matchHash === void 0 ? void 0 : matchHash.groups) === null || _a === void 0 ? void 0 : _a.hash;
 }
 /**
+ * Function to get file from S3 Bucket
+ * @param key key for the S3 bucket
+ * @param onEmpty function will be called if file doesn't exist
+ * @param config config object
+ * @param s3 S3 instance
+ * @returns content of the file
+ */
+function fetchFileFromOriginBucket(key, onEmpty, config, s3) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const s3Params = {
+            Bucket: config.originBucketName,
+            Key: key
+        };
+        const response = yield s3.getObject(s3Params).promise();
+        if (!response.Body) {
+            onEmpty();
+        }
+        return response.Body.toString('utf-8').trim();
+    });
+}
+/**
  * Fetches a cursor deploy file from the S3 bucket and returns its content (i.e. the current active tree hash
  * for that branch).
  */
 function fetchDeploymentTreeHash(branch, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
-        const s3Params = {
-            Bucket: config.originBucketName,
-            Key: `deploys/${branch}`
-        };
-        const response = yield s3.getObject(s3Params).promise();
-        if (!response.Body) {
+        const response = yield fetchFileFromOriginBucket(`deploys/${branch}`, () => {
             throw new Error(`Cursor file not found for branch=${branch}`);
-        }
-        return response.Body.toString('utf-8').trim();
+        }, config, s3);
+        return response;
     });
 }
+// Get the latest translation cursor file from S3 bucket
 const getTranslationCursor = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const s3Params = {
-            Bucket: config.originBucketName,
-            Key: `translation-deploy/latest`
-        };
-        const response = yield s3.getObject(s3Params).promise();
-        if (!response.Body) {
+        const response = yield fetchFileFromOriginBucket(`translation-deploy/latest`, () => {
             throw new Error(`Latest cursor file not found `);
-        }
-        return response.Body.toString('utf-8').trim();
+        }, config, s3);
+        return response;
     }
     catch (e) {
         return 'default';

@@ -85,7 +85,7 @@ function getHeader(request, headerName) {
     var _a, _b, _c;
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
-const TRANSLATION_CURSOR_HEADER = 'Translation-Cursor';
+const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
 
 ;// CONCATENATED MODULE: ./src/viewer-response/viewer-response.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -115,8 +115,8 @@ function getHandler(config) {
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
-        response = addCookieHeaders(response, translationCursor);
-        response = addPreloadHeaders(response, request, translationCursor);
+        response = addCookieHeader(response, translationCursor);
+        response = addPreloadHeader(response, request, translationCursor);
         return response;
     });
     return handler;
@@ -160,41 +160,51 @@ const addRobotsHeader = (response, config) => {
     return Object.assign(Object.assign({}, response), { headers });
 };
 /**
- * Adds cookie HTTP header to the response to prevent indexing by bots (only in staging)
+ * Adds cookie 'translation-hash' with value of latest translation cursor
  */
-const addCookieHeaders = (response, translationCursor) => {
+const addCookieHeader = (response, translationCursor) => {
     let headers = response.headers;
     headers = setHeader(headers, 'Set-Cookie', `translation-hash=${translationCursor}`);
     return Object.assign(Object.assign({}, response), { headers });
 };
 /**
- * Adds cookie HTTP header to the response to prevent indexing by bots (only in staging)
+ * Adds preload header for translation file to speed up rendering of the app,
+ * since translation file is the required for it.
+ * We get the language from the 'x-pleo-language' cookie
+ * which is in sync with the user language to preload translation file with the language of the app.
+ * But it is possible to override user&app language with the 'lang' url param,
+ * since this overriding won't be refltected in the cookie yet, we get the language from this param 'lang'
+ * If both, url param & cookie are empty, it means that language is not chosen by any form, which means that the app will be in 'en'
  */
-const addPreloadHeaders = (response, request, translationCursor) => {
+const addPreloadHeader = (response, request, translationCursor) => {
     let headers = response.headers;
     const urlParams = new URLSearchParams(request.querystring);
-    const language = urlParams.get('lang') || extractCookie(request.headers, 'x-pleo-language');
-    headers = setHeader(headers, 'Link', ` </static/translations/${language}/messages.${translationCursor}.js>; rel="preload"; as="script"`);
+    const language = urlParams.get('lang') || getCookie(request.headers, 'x-pleo-language') || 'en';
+    headers = setHeader(headers, 'Link', `</static/translations/${language}/messages.${translationCursor}.js>; rel="preload"; as="script"`);
     return Object.assign(Object.assign({}, response), { headers });
 };
-const extractCookie = (headers, cname) => {
-    const cookies = headers['cookie'];
-    if (!cookies) {
-        console.log("extractCookie(): no 'Cookie:' headers in request");
+/**
+ * Extract the value of a specific cookie from CloudFront headers map, if present
+ * @param headers - CloudFront headers map
+ * @param cookieName - The key of the cookie to extract the value for
+ * @returns The string value of the cookie if present, otherwise null
+ */
+function getCookie(headers, cookieName) {
+    const cookieHeader = headers.cookie;
+    if (!cookieHeader) {
         return null;
     }
-    for (let n = cookies.length; n--;) {
-        const cval = cookies[n].value.split(/;\ /);
-        const vlen = cval.length;
-        for (var m = vlen; m--;) {
-            const cookie_kv = cval[m].split('=');
-            if (cookie_kv[0] === cname) {
-                return cookie_kv[1];
+    for (const cookieSet of cookieHeader) {
+        const cookies = cookieSet.value.split(/; /);
+        for (const cookie of cookies) {
+            const cookieKeyValue = cookie.split('=');
+            if (cookieKeyValue[0] === cookieName) {
+                return cookieKeyValue[1];
             }
         }
     }
     return null;
-};
+}
 
 ;// CONCATENATED MODULE: ./src/viewer-response/index.ts
 
