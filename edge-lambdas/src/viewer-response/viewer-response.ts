@@ -5,7 +5,13 @@ import {
     CloudFrontRequest
 } from 'aws-lambda'
 import {Config} from '../config'
-import {setHeader, getHeader, TRANSLATION_CURSOR_HEADER, DEFAULT_TRANSLATION_CURSOR} from '../utils'
+import {
+    setHeader,
+    getHeader,
+    TRANSLATION_CURSOR_HEADER,
+    DEFAULT_TRANSLATION_CURSOR,
+    TREE_HASH_HEADER
+} from '../utils'
 
 /**
  * Edge Lambda handler triggered on "viewer-response" event, on the default CF behavior of the web app CF distribution.
@@ -24,12 +30,14 @@ export function getHandler(config: Config) {
         const translationCursor =
             getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR
 
+        const treeHash = getHeader(request, TREE_HASH_HEADER)
+
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
         response = addCookieHeader(response, translationCursor)
         if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
-            response = addPreloadHeader(response, request, translationCursor)
+            response = addPreloadHeader(response, request, translationCursor, treeHash)
         }
 
         return response
@@ -108,16 +116,18 @@ export const addCookieHeader = (response: CloudFrontResponse, translationCursor:
 export const addPreloadHeader = (
     response: CloudFrontResponse,
     request: CloudFrontRequest,
-    translationCursor: string
+    translationCursor: string,
+    treeHash: string
 ) => {
     let headers = response.headers
     const urlParams = new URLSearchParams(request.querystring)
     const language = urlParams.get('lang') || getCookie(request.headers, 'x-pleo-language') || 'en'
+    const hash = language === 'en' ? treeHash : translationCursor
 
     headers = setHeader(
         headers,
         'Link',
-        `</static/translations/${language}/messages.${translationCursor}.js>; rel="preload"; as="script"`
+        `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`
     )
 
     return {...response, headers}
