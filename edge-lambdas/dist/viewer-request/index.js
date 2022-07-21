@@ -105,6 +105,7 @@ function getHeader(request, headerName) {
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
+const TREE_HASH_HEADER = 'X-Tree-Hash';
 // If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
 // If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
 const DEFAULT_TRANSLATION_CURSOR = 'default';
@@ -139,14 +140,16 @@ function getHandler(config, s3) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         const request = event.Records[0].cf.request;
         try {
-            // Get URI and translation cursor in parralel to avoid the double network penalty
-            const [uri, translationCursor] = yield Promise.all([
-                getUriWithErrorPrefix(request, config, s3),
-                getTranslationCursor(s3, config)
+            // Get tree hash and translation cursor in parralel to avoid the double network penalty
+            const [treeHash, translationCursor] = yield Promise.all([
+                getTreeHashWithErrorPrefix(request, config, s3),
+                fetchDeploymentTranslationHash(s3, config)
             ]);
+            const uri = getUri(request, treeHash);
             // We instruct the CDN to return a file that corresponds to the tree hash requested
             request.uri = uri;
             request.headers = setHeader(request.headers, TRANSLATION_CURSOR_HEADER, translationCursor);
+            request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash);
         }
         catch (e) {
             console.error(e);
@@ -161,31 +164,24 @@ function getHandler(config, s3) {
     return handler;
 }
 // We respond with a requested file, but prefix it with the hash of the current active deployment
-function getUri(request, config, s3) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const host = getHeader(request, 'host');
-        if (!host) {
-            throw new Error('Missing Host header');
-        }
-        const treeHash = yield getTreeHash(host, config, s3);
-        // If the
-        // - request uri is for a specific file (e.g. "/iframe.html")
-        // - or is a request on one of the .well-known paths (like .well-known/apple-app-site-association)
-        // we serve the requested file.
-        // Otherwise, for requests uris like "/" or "my-page" we serve the top-level index.html file,
-        // which assumes the routing is handled client-side.
-        const isFileRequest = request.uri.split('/').pop().includes('.');
-        const isWellKnownRequest = request.uri.startsWith('/.well-known/');
-        const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
-        return external_path_namespaceObject.join('/html', treeHash, filePath);
-    });
+function getUri(request, treeHash) {
+    // If the
+    // - request uri is for a specific file (e.g. "/iframe.html")
+    // - or is a request on one of the .well-known paths (like .well-known/apple-app-site-association)
+    // we serve the requested file.
+    // Otherwise, for requests uris like "/" or "my-page" we serve the top-level index.html file,
+    // which assumes the routing is handled client-side.
+    const isFileRequest = request.uri.split('/').pop().includes('.');
+    const isWellKnownRequest = request.uri.startsWith('/.well-known/');
+    const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
+    return external_path_namespaceObject.join('/html', treeHash, filePath);
 }
 // Calls getUri function, with error prefix
-function getUriWithErrorPrefix(request, config, s3) {
+function getTreeHashWithErrorPrefix(request, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const uri = yield getUri(request, config, s3);
-            return uri;
+            const treeHash = yield getTreeHash(request, config, s3);
+            return treeHash;
         }
         catch (e) {
             throw new Error(`${URI_PREFIX_ERROR} ${e.message}`);
@@ -195,9 +191,13 @@ function getUriWithErrorPrefix(request, config, s3) {
 // We use repository tree hash to identify the version of the HTML served.
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
 // tree hash for a branch requested (preview or main), which we fetch from cursor files stored in S3
-function getTreeHash(host, config, s3) {
+function getTreeHash(request, config, s3) {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
+        const host = getHeader(request, 'host');
+        if (!host) {
+            throw new Error('Missing Host header');
+        }
         // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.example.com
         // Preview name is either a sanitized branch name or it follows the preview-[treeHash] pattern
         let previewName;
@@ -252,15 +252,17 @@ function fetchDeploymentTreeHash(branch, config, s3) {
         const response = yield fetchFileFromOriginBucket(`deploys/${branch}`, () => {
             throw new Error(`Cursor file not found for branch=${branch}`);
         }, config, s3);
+        console.log('fetchDeploymentTreeHash', response);
         return response;
     });
 }
 // Get the latest translation cursor file from S3 bucket
-const getTranslationCursor = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
+const fetchDeploymentTranslationHash = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const response = yield fetchFileFromOriginBucket(`translation-deploy/latest`, () => {
             throw new Error(`Latest cursor file not found `);
         }, config, s3);
+        console.log('fetchDeploymentTranslationHash', response);
         return response;
     }
     catch (e) {

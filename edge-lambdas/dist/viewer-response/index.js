@@ -86,6 +86,7 @@ function getHeader(request, headerName) {
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
+const TREE_HASH_HEADER = 'X-Tree-Hash';
 // If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
 // If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
 const DEFAULT_TRANSLATION_CURSOR = 'default';
@@ -115,12 +116,13 @@ function getHandler(config) {
         let response = event.Records[0].cf.response;
         const request = event.Records[0].cf.request;
         const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR;
+        const treeHash = getHeader(request, TREE_HASH_HEADER);
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
         response = addCookieHeader(response, translationCursor);
         if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
-            response = addPreloadHeader(response, request, translationCursor);
+            response = addPreloadHeader(response, request, translationCursor, treeHash);
         }
         return response;
     });
@@ -181,11 +183,12 @@ const addCookieHeader = (response, translationCursor) => {
  * since this overriding won't be refltected in the cookie yet, we get the language from this param 'lang'
  * If both, url param & cookie are empty, it means that language is not chosen by any form, which means that the app will be in 'en'
  */
-const addPreloadHeader = (response, request, translationCursor) => {
+const addPreloadHeader = (response, request, translationCursor, treeHash) => {
     let headers = response.headers;
     const urlParams = new URLSearchParams(request.querystring);
     const language = urlParams.get('lang') || getCookie(request.headers, 'x-pleo-language') || 'en';
-    headers = setHeader(headers, 'Link', `</static/translations/${language}/messages.${translationCursor}.js>; rel="preload"; as="script"`);
+    const hash = language === 'en' ? treeHash : translationCursor;
+    headers = setHeader(headers, 'Link', `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`);
     return Object.assign(Object.assign({}, response), { headers });
 };
 /**
