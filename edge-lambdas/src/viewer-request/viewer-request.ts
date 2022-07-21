@@ -163,6 +163,7 @@ async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
         config,
         s3
     )
+    console.log('fetchDeploymentTreeHash', response)
     return response
 }
 
@@ -177,6 +178,7 @@ export const fetchDeploymentTranslationHash = async (s3: S3, config: Config) => 
             config,
             s3
         )
+        console.log('fetchDeploymentTranslationHash', response)
         return response
     } catch (e) {
         return DEFAULT_TRANSLATION_CURSOR
