@@ -91,6 +91,31 @@ describe(`Viewer response Lambda@Edge`, () => {
         })
     })
 
+    test(`Add preload headers and update hash value from tree hash for en instead of 'translation-hash'`, async () => {
+        const hash = '123123'
+        const translationHash = '456456'
+        const handler = getHandler({
+            originBucketName: 'test-origin-bucket',
+            originBucketRegion: 'eu-west-1',
+            previewDeploymentPostfix: '.app.example.com',
+            blockIframes: 'true'
+        })
+
+        const event = mockResponseEvent({host: 'app.staging.example.com', hash, translationHash})
+
+        expect(await handler(event, {} as any, () => {})).toEqual({
+            headers: {
+                ...securityHeaders,
+                'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
+                ...defaultHeaders,
+                ...cacheControlHeaders,
+                ...getHeaderBasedOnHash(translationHash, hash)
+            },
+            status: '200',
+            statusDescription: 'OK'
+        })
+    })
+
     test(`Add preload headers and update hash value for 'translation-hash' cookie with da language from cookie 'x-pleo-language'`, async () => {
         const hash = '123123'
         const handler = getHandler({
@@ -108,7 +133,7 @@ describe(`Viewer response Lambda@Edge`, () => {
                 'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
                 ...defaultHeaders,
                 ...cacheControlHeaders,
-                ...getHeaderBasedOnHash(hash, 'da')
+                ...getHeaderBasedOnHash(hash, hash, 'da')
             },
             status: '200',
             statusDescription: 'OK'
@@ -137,7 +162,7 @@ describe(`Viewer response Lambda@Edge`, () => {
                 'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
                 ...defaultHeaders,
                 ...cacheControlHeaders,
-                ...getHeaderBasedOnHash(hash, 'da')
+                ...getHeaderBasedOnHash(hash, hash, 'da')
             },
             status: '200',
             statusDescription: 'OK'
@@ -165,12 +190,16 @@ const cacheControlHeaders = {
     ]
 }
 
-const getHeaderBasedOnHash = (hash = 'default', language = 'en') => {
+const getHeaderBasedOnHash = (
+    translationHash = 'default',
+    hash = translationHash,
+    language = 'en'
+) => {
     return {
         'set-cookie': [
             {
                 key: 'Set-Cookie',
-                value: `translation-hash=${hash}`
+                value: `translation-hash=${translationHash}`
             }
         ],
         link:
@@ -191,12 +220,14 @@ const getHeaderBasedOnHash = (hash = 'default', language = 'en') => {
 export const mockResponseEvent = ({
     host,
     hash = 'default',
+    translationHash = hash,
     uri = '/',
     language,
     isCookieForLanguage = true
 }: {
     host: string
     hash?: string
+    translationHash?: string
     uri?: string
     language?: string
     isCookieForLanguage?: boolean
@@ -220,6 +251,12 @@ export const mockResponseEvent = ({
                             }
                         ],
                         'x-translation-cursor': [
+                            {
+                                key: 'X-Translation-Cursor',
+                                value: translationHash
+                            }
+                        ],
+                        'x-tree-hash': [
                             {
                                 key: 'X-Translation-Cursor',
                                 value: hash

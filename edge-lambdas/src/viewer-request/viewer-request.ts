@@ -34,11 +34,11 @@ export function getHandler(config: Config, s3: S3) {
         try {
             // Get tree hash and translation cursor in parralel to avoid the double network penalty
             const [treeHash, translationCursor] = await Promise.all([
-                getTreeHash(request, config, s3),
+                getTreeHashWithErrorPrefix(request, config, s3),
                 fetchDeploymentTranslationHash(s3, config)
             ])
 
-            const uri = getUriWithErrorPrefix(request, treeHash)
+            const uri = getUri(request, treeHash)
 
             // We instruct the CDN to return a file that corresponds to the tree hash requested
             request.uri = uri
@@ -49,7 +49,7 @@ export function getHandler(config: Config, s3: S3) {
                 translationCursor
             )
 
-            request.headers = setHeader(request.headers, TREE_HASH_HEADER, translationCursor)
+            request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash)
         } catch (e) {
             console.error(e)
 
@@ -82,10 +82,10 @@ function getUri(request: CloudFrontRequest, treeHash: string) {
 }
 
 // Calls getUri function, with error prefix
-function getUriWithErrorPrefix(request: CloudFrontRequest, treeHash: string) {
+async function getTreeHashWithErrorPrefix(request: CloudFrontRequest, config: Config, s3: S3) {
     try {
-        const uri = getUri(request, treeHash)
-        return uri
+        const treeHash = await getTreeHash(request, config, s3)
+        return treeHash
     } catch (e) {
         throw new Error(`${URI_PREFIX_ERROR} ${e.message}`)
     }
@@ -167,7 +167,7 @@ async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
 }
 
 // Get the latest translation cursor file from S3 bucket
-const fetchDeploymentTranslationHash = async (s3: S3, config: Config) => {
+export const fetchDeploymentTranslationHash = async (s3: S3, config: Config) => {
     try {
         const response = await fetchFileFromOriginBucket(
             `translation-deploy/latest`,

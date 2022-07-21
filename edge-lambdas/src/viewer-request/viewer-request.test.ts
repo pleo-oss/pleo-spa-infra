@@ -13,7 +13,15 @@ describe(`Viewer request Lambda@Edge`, () => {
         it modifies the request to fetch the latest master branch HTML
     `, async () => {
         const treeHash = '3b6197b16baa26057a25fcd5d60a64c4c0765d18'
-        const s3 = mockGetObject(treeHash)
+        const translationHash = '123456'
+        const s3 = new MockedS3()
+
+        s3.getObject = jest.fn().mockReturnValue({
+            promise: jest
+                .fn()
+                .mockReturnValueOnce({Body: treeHash})
+                .mockReturnValueOnce({Body: translationHash})
+        })
 
         const handler = getHandler(
             {
@@ -22,7 +30,11 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.example.com', hash: treeHash})
+        const event = mockRequestEvent({
+            host: 'app.example.com',
+            translationHash,
+            hash: treeHash
+        })
 
         const response = await handler(event, {} as any, () => {})
 
@@ -42,6 +54,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.example.com',
+                    translationHash,
                     hash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
@@ -50,7 +63,7 @@ describe(`Viewer request Lambda@Edge`, () => {
     })
 
     test(`
-        When requesting app.example.com 
+        When requesting app.example.com
         and a custom default branch name is configured
         it modifies the request to fetch the latest default branch HTML
     `, async () => {
@@ -65,7 +78,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.example.com', hash: treeHash})
+        const event = mockRequestEvent({host: 'app.example.com', translationHash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
 
@@ -85,7 +98,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.example.com',
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -107,7 +120,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'app.staging.example.com', hash: treeHash})
+        const event = mockRequestEvent({host: 'app.staging.example.com', translationHash: treeHash})
 
         const response = await handler(event, {} as any, () => {})
 
@@ -127,7 +140,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.staging.example.com',
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -149,7 +162,10 @@ describe(`Viewer request Lambda@Edge`, () => {
             },
             s3
         )
-        const event = mockRequestEvent({host: 'my-feature.app.staging.example.com', hash: treeHash})
+        const event = mockRequestEvent({
+            host: 'my-feature.app.staging.example.com',
+            translationHash: treeHash
+        })
 
         const response = await handler(event, {} as any, () => {})
 
@@ -169,7 +185,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${treeHash}/index.html`
                 })
             )
@@ -189,7 +205,7 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
         const event = mockRequestEvent({
             host: 'my-feature.app.staging.example.com',
-            hash: treeHash,
+            translationHash: treeHash,
             uri: '/iframe.html'
         })
 
@@ -211,7 +227,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${treeHash}/iframe.html`
                 })
             )
@@ -231,7 +247,7 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
         const event = mockRequestEvent({
             host: 'my-feature.app.staging.example.com',
-            hash: treeHash,
+            translationHash: treeHash,
             uri: '/.well-known/apple-app-site-association'
         })
 
@@ -253,7 +269,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'my-feature.app.staging.example.com',
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${treeHash}/.well-known/apple-app-site-association`
                 })
             )
@@ -278,7 +294,7 @@ describe(`Viewer request Lambda@Edge`, () => {
 
         const event = mockRequestEvent({
             host: `preview-${requestedTreeHash}.app.staging.example.com`,
-            hash: treeHash
+            translationHash: treeHash
         })
 
         const response = await handler(event, {} as any, () => {})
@@ -293,7 +309,7 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: `preview-${requestedTreeHash}.app.staging.example.com`,
-                    hash: treeHash,
+                    translationHash: treeHash,
                     uri: `/html/${requestedTreeHash}/index.html`
                 })
             )
@@ -320,7 +336,7 @@ describe(`Viewer request Lambda@Edge`, () => {
         )
         const event = mockRequestEvent({
             host: 'what-is-this-branch.app.staging.example.com',
-            hash: '123'
+            translationHash: '123'
         })
 
         const response = await handler(event, {} as any, () => {})
@@ -342,7 +358,7 @@ describe(`Viewer request Lambda@Edge`, () => {
                 mockRequestEvent({
                     host: `what-is-this-branch.app.staging.example.com`,
                     uri: `/404`,
-                    hash: '123'
+                    translationHash: '123'
                 })
             )
         )
@@ -357,17 +373,18 @@ const mockGetObject = (returnValue: string) => {
     })
     return s3
 }
-
 // Returns a mock Cloudfront viewer request event with the specified host and URI. See
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/lambda-event-structure.html#example-viewer-request for
 // more info on the shape of the request events for Edge Lambdas
 const mockRequestEvent = ({
     host,
+    translationHash,
     hash,
     uri = '/'
 }: {
     host: string
-    hash: string
+    hash?: string
+    translationHash: string
     uri?: string
 }): CloudFrontRequestEvent => ({
     Records: [
@@ -403,7 +420,13 @@ const mockRequestEvent = ({
                         'x-translation-cursor': [
                             {
                                 key: 'X-Translation-Cursor',
-                                value: hash
+                                value: translationHash
+                            }
+                        ],
+                        'x-tree-hash': [
+                            {
+                                key: 'X-Tree-Hash',
+                                value: hash || translationHash
                             }
                         ]
                     },
