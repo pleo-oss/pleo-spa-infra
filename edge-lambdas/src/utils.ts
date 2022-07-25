@@ -35,6 +35,6 @@ export function getHeader(request: CloudFrontRequest, headerName: string): strin
 export const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor'
 export const TREE_HASH_HEADER = 'X-Tree-Hash'
 
-// If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
-// If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
+// If something goes wrong in any of the steps for retrieving the latest translation cursor, the cursor will default to "default"
+// If the translation cursor is "default", only English will available in the app and messages will be loaded from the catalog deployed during app deploy
 export const DEFAULT_TRANSLATION_CURSOR = 'default'
