@@ -1,6 +1,5 @@
 import {CloudFrontRequestEvent} from 'aws-lambda'
 import S3 from 'aws-sdk/clients/s3'
-import {DEFAULT_TRANSLATION_CURSOR} from '../utils'
 import {getHandler} from './viewer-request'
 
 jest.mock('aws-sdk/clients/s3', () => jest.fn().mockReturnValue({getObject: jest.fn()}))
@@ -319,7 +318,7 @@ describe(`Viewer request Lambda@Edge`, () => {
         })
 
         const response = await handler(event, {} as any, () => {})
-        console.log(event['Records'][0]['cf']['request']['headers'])
+
         expect(s3.getObject).toHaveBeenCalledTimes(1)
 
         expect(s3.getObject).toHaveBeenCalledWith({
@@ -440,9 +439,9 @@ describe(`Viewer request Lambda@Edge`, () => {
             requestFromEvent(
                 mockRequestEvent({
                     host: 'app.example.com',
-                    translationHash: DEFAULT_TRANSLATION_CURSOR,
+                    translationHash,
                     treeHash,
-                    uri: `/html/${treeHash}/index.html`
+                    uri: `/404`
                 })
             )
         )

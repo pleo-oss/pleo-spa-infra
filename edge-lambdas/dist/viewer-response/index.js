@@ -87,9 +87,28 @@ function getHeader(request, headerName) {
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
 const TREE_HASH_HEADER = 'X-Tree-Hash';
-// If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
-// If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
-const DEFAULT_TRANSLATION_CURSOR = 'default';
+/**
+ * Extract the value of a specific cookie from CloudFront headers map, if present
+ * @param headers - CloudFront headers map
+ * @param cookieName - The key of the cookie to extract the value for
+ * @returns The string value of the cookie if present, otherwise null
+ */
+function getCookie(headers, cookieName) {
+    const cookieHeader = headers.cookie;
+    if (!cookieHeader) {
+        return null;
+    }
+    for (const cookieSet of cookieHeader) {
+        const cookies = cookieSet.value.split(/; /);
+        for (const cookie of cookies) {
+            const cookieKeyValue = cookie.split('=');
+            if (cookieKeyValue[0] === cookieName) {
+                return cookieKeyValue[1];
+            }
+        }
+    }
+    return null;
+}
 
 ;// CONCATENATED MODULE: ./src/viewer-response/viewer-response.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -115,13 +134,13 @@ function getHandler(config) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         let response = event.Records[0].cf.response;
         const request = event.Records[0].cf.request;
-        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR;
+        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER);
         const treeHash = getHeader(request, TREE_HASH_HEADER);
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
         response = setTranslationHashCookie(response, translationCursor);
-        if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
+        if (Boolean(translationCursor)) {
             response = addPreloadHeader(response, request, translationCursor, treeHash);
         }
         return response;
@@ -191,28 +210,6 @@ const addPreloadHeader = (response, request, translationCursor, treeHash) => {
     headers = setHeader(headers, 'Link', `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`);
     return Object.assign(Object.assign({}, response), { headers });
 };
-/**
- * Extract the value of a specific cookie from CloudFront headers map, if present
- * @param headers - CloudFront headers map
- * @param cookieName - The key of the cookie to extract the value for
- * @returns The string value of the cookie if present, otherwise null
- */
-function getCookie(headers, cookieName) {
-    const cookieHeader = headers.cookie;
-    if (!cookieHeader) {
-        return null;
-    }
-    for (const cookieSet of cookieHeader) {
-        const cookies = cookieSet.value.split(/; /);
-        for (const cookie of cookies) {
-            const cookieKeyValue = cookie.split('=');
-            if (cookieKeyValue[0] === cookieName) {
-                return cookieKeyValue[1];
-            }
-        }
-    }
-    return null;
-}
 
 ;// CONCATENATED MODULE: ./src/viewer-response/index.ts
 

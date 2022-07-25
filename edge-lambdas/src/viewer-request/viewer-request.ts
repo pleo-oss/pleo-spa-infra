@@ -3,17 +3,10 @@ import * as path from 'path'
 import {CloudFrontRequest, CloudFrontRequestHandler} from 'aws-lambda'
 import S3 from 'aws-sdk/clients/s3'
 
-import {
-    getHeader,
-    setHeader,
-    TRANSLATION_CURSOR_HEADER,
-    TREE_HASH_HEADER,
-    DEFAULT_TRANSLATION_CURSOR
-} from '../utils'
+import {getHeader, setHeader, TRANSLATION_CURSOR_HEADER, TREE_HASH_HEADER} from '../utils'
 import {Config} from '../config'
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master'
-const URI_PREFIX_ERROR = 'URL Error:'
 
 /**
  * Edge Lambda handler triggered on "viewer-request" event, on the default CF behavior of the web app CF distribution.
@@ -34,7 +27,7 @@ export function getHandler(config: Config, s3: S3) {
         try {
             // Get tree hash and translation cursor in parralel to avoid the double network penalty
             const [treeHash, translationCursor] = await Promise.all([
-                getTreeHashWithErrorPrefix(request, config, s3),
+                getTreeHash(request, config, s3),
                 fetchDeploymentTranslationHash(s3, config)
             ])
 
@@ -52,19 +45,9 @@ export function getHandler(config: Config, s3: S3) {
             request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash)
         } catch (e) {
             console.error(e)
-            console.log('e.message', e.message)
-            if (e.message && e.message.startsWith(URI_PREFIX_ERROR)) {
-                // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-                // the configured custom error page
-                request.uri = '/404'
-            } else {
-                // When error is not related 'treeHash', but to 'translationHash', set translation cursor header with the default value
-                request.headers = setHeader(
-                    request.headers,
-                    TRANSLATION_CURSOR_HEADER,
-                    DEFAULT_TRANSLATION_CURSOR
-                )
-            }
+            // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+            // the configured custom error page
+            request.uri = '/404'
         }
 
         return request
@@ -86,16 +69,6 @@ function getUri(request: CloudFrontRequest, treeHash: string) {
     const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html'
 
     return path.join('/html', treeHash, filePath)
-}
-
-// Calls getTreeHash function, with error prefix
-async function getTreeHashWithErrorPrefix(request: CloudFrontRequest, config: Config, s3: S3) {
-    try {
-        const treeHash = await getTreeHash(request, config, s3)
-        return treeHash
-    } catch (e) {
-        throw new Error(`${URI_PREFIX_ERROR} ${e.message}`)
-    }
 }
 
 // We use repository tree hash to identify the version of the HTML served.

@@ -9,7 +9,6 @@ import {
     setHeader,
     getHeader,
     TRANSLATION_CURSOR_HEADER,
-    DEFAULT_TRANSLATION_CURSOR,
     TREE_HASH_HEADER,
     getCookie
 } from '../utils'
@@ -28,8 +27,7 @@ export function getHandler(config: Config) {
         let response = event.Records[0].cf.response
         const request = event.Records[0].cf.request
 
-        const translationCursor =
-            getHeader(request, TRANSLATION_CURSOR_HEADER) || DEFAULT_TRANSLATION_CURSOR
+        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER)
 
         const treeHash = getHeader(request, TREE_HASH_HEADER)
 
@@ -37,7 +35,7 @@ export function getHandler(config: Config) {
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
         response = setTranslationHashCookie(response, translationCursor)
-        if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
+        if (Boolean(translationCursor)) {
             response = addPreloadHeader(response, request, translationCursor, treeHash)
         }
 

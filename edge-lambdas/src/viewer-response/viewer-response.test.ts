@@ -109,7 +109,7 @@ describe(`Viewer response Lambda@Edge`, () => {
                 'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
                 ...defaultHeaders,
                 ...cacheControlHeaders,
-                ...getHeaderBasedOnHash(translationHash, hash)
+                ...getHeaderBasedOnHash(hash, translationHash)
             },
             status: '200',
             statusDescription: 'OK'
@@ -190,11 +190,7 @@ const cacheControlHeaders = {
     ]
 }
 
-const getHeaderBasedOnHash = (
-    translationHash = 'default',
-    hash = translationHash,
-    language = 'en'
-) => {
+const getHeaderBasedOnHash = (hash = undefined, translationHash = hash, language = 'en') => {
     return {
         'set-cookie': [
             {
@@ -202,15 +198,14 @@ const getHeaderBasedOnHash = (
                 value: `translation-hash=${translationHash}`
             }
         ],
-        link:
-            hash !== 'default'
-                ? [
-                      {
-                          key: 'Link',
-                          value: `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`
-                      }
-                  ]
-                : undefined
+        link: Boolean(hash)
+            ? [
+                  {
+                      key: 'Link',
+                      value: `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`
+                  }
+              ]
+            : undefined
     }
 }
 
@@ -219,7 +214,7 @@ const getHeaderBasedOnHash = (
 // more info on the shape of the response events for Edge Lambdas
 export const mockResponseEvent = ({
     host,
-    hash = 'default',
+    hash,
     translationHash = hash,
     uri = '/',
     language,

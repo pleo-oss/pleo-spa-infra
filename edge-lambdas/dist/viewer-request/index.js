@@ -106,9 +106,28 @@ function getHeader(request, headerName) {
 }
 const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
 const TREE_HASH_HEADER = 'X-Tree-Hash';
-// If something goes wrong in any of the step for retrieving latest translation cursor, the value will be defaulted to 'default'
-// If translation cursor is 'default', on the client side only english will available and messages will be get from the file deployed during app deploy
-const DEFAULT_TRANSLATION_CURSOR = 'default';
+/**
+ * Extract the value of a specific cookie from CloudFront headers map, if present
+ * @param headers - CloudFront headers map
+ * @param cookieName - The key of the cookie to extract the value for
+ * @returns The string value of the cookie if present, otherwise null
+ */
+function getCookie(headers, cookieName) {
+    const cookieHeader = headers.cookie;
+    if (!cookieHeader) {
+        return null;
+    }
+    for (const cookieSet of cookieHeader) {
+        const cookies = cookieSet.value.split(/; /);
+        for (const cookie of cookies) {
+            const cookieKeyValue = cookie.split('=');
+            if (cookieKeyValue[0] === cookieName) {
+                return cookieKeyValue[1];
+            }
+        }
+    }
+    return null;
+}
 
 ;// CONCATENATED MODULE: ./src/viewer-request/viewer-request.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -123,7 +142,6 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master';
-const URI_PREFIX_ERROR = 'URL Error:';
 /**
  * Edge Lambda handler triggered on "viewer-request" event, on the default CF behavior of the web app CF distribution.
  * The default CF behaviour only handles requests for HTML documents and requests for static files (e.g. /, /bills, /settings/accounting etc.)
@@ -142,7 +160,7 @@ function getHandler(config, s3) {
         try {
             // Get tree hash and translation cursor in parralel to avoid the double network penalty
             const [treeHash, translationCursor] = yield Promise.all([
-                getTreeHashWithErrorPrefix(request, config, s3),
+                getTreeHash(request, config, s3),
                 fetchDeploymentTranslationHash(s3, config)
             ]);
             const uri = getUri(request, treeHash);
@@ -153,11 +171,9 @@ function getHandler(config, s3) {
         }
         catch (e) {
             console.error(e);
-            if (e.message && e.message.startsWith(URI_PREFIX_ERROR)) {
-                // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
-                // the configured custom error page
-                request.uri = '/404';
-            }
+            // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
+            // the configured custom error page
+            request.uri = '/404';
         }
         return request;
     });
@@ -175,18 +191,6 @@ function getUri(request, treeHash) {
     const isWellKnownRequest = request.uri.startsWith('/.well-known/');
     const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
     return external_path_namespaceObject.join('/html', treeHash, filePath);
-}
-// Calls getUri function, with error prefix
-function getTreeHashWithErrorPrefix(request, config, s3) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const treeHash = yield getTreeHash(request, config, s3);
-            return treeHash;
-        }
-        catch (e) {
-            throw new Error(`${URI_PREFIX_ERROR} ${e.message}`);
-        }
-    });
 }
 // We use repository tree hash to identify the version of the HTML served.
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
@@ -230,7 +234,7 @@ function getPreviewHash(previewName) {
  * @param s3 S3 instance
  * @returns content of the file
  */
-function fetchFileFromOriginBucket(key, onEmpty, config, s3) {
+function fetchFileFromOriginBucket(key, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
         const s3Params = {
             Bucket: config.originBucketName,
@@ -238,7 +242,7 @@ function fetchFileFromOriginBucket(key, onEmpty, config, s3) {
         };
         const response = yield s3.getObject(s3Params).promise();
         if (!response.Body) {
-            onEmpty();
+            throw new Error();
         }
         return response.Body.toString('utf-8').trim();
     });
@@ -249,24 +253,23 @@ function fetchFileFromOriginBucket(key, onEmpty, config, s3) {
  */
 function fetchDeploymentTreeHash(branch, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
-        const response = yield fetchFileFromOriginBucket(`deploys/${branch}`, () => {
+        try {
+            const response = yield fetchFileFromOriginBucket(`deploys/${branch}`, config, s3);
+            return response;
+        }
+        catch (_a) {
             throw new Error(`Cursor file not found for branch=${branch}`);
-        }, config, s3);
-        console.log('fetchDeploymentTreeHash', response);
-        return response;
+        }
     });
 }
 // Get the latest translation cursor file from S3 bucket
 const fetchDeploymentTranslationHash = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield fetchFileFromOriginBucket(`translation-deploy/latest`, () => {
-            throw new Error(`Latest cursor file not found `);
-        }, config, s3);
-        console.log('fetchDeploymentTranslationHash', response);
+        const response = yield fetchFileFromOriginBucket(`translation-deploy/latest`, config, s3);
         return response;
     }
-    catch (e) {
-        return DEFAULT_TRANSLATION_CURSOR;
+    catch (_a) {
+        throw new Error(`Latest translation cursor file not found`);
     }
 });
 
