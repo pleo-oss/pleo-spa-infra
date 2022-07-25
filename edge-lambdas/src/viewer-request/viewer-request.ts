@@ -130,7 +130,7 @@ function getPreviewHash(previewName?: string) {
 }
 
 /**
- * Function to get file from S3 Bucket
+ * Fetches a file from the S3 origin bucket and returns its content
  * @param key key for the S3 bucket
  * @param onEmpty function will be called if file doesn't exist
  * @param config config object
