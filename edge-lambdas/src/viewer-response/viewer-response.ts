@@ -10,7 +10,8 @@ import {
     getHeader,
     TRANSLATION_CURSOR_HEADER,
     DEFAULT_TRANSLATION_CURSOR,
-    TREE_HASH_HEADER
+    TREE_HASH_HEADER,
+    getCookie
 } from '../utils'
 
 /**
@@ -35,7 +36,7 @@ export function getHandler(config: Config) {
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
-        response = addCookieHeader(response, translationCursor)
+        response = setTranslationHashCookie(response, translationCursor)
         if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
             response = addPreloadHeader(response, request, translationCursor, treeHash)
         }
@@ -96,7 +97,10 @@ export const addRobotsHeader = (response: CloudFrontResponse, config: Config) =>
 /**
  * Adds cookie 'translation-hash' with value of latest translation cursor
  */
-export const addCookieHeader = (response: CloudFrontResponse, translationCursor: string) => {
+export const setTranslationHashCookie = (
+    response: CloudFrontResponse,
+    translationCursor: string
+) => {
     let headers = response.headers
 
     headers = setHeader(headers, 'Set-Cookie', `translation-hash=${translationCursor}`)
@@ -131,32 +135,4 @@ export const addPreloadHeader = (
     )
 
     return {...response, headers}
-}
-
-/**
- * Extract the value of a specific cookie from CloudFront headers map, if present
- * @param headers - CloudFront headers map
- * @param cookieName - The key of the cookie to extract the value for
- * @returns The string value of the cookie if present, otherwise null
- */
-export function getCookie(headers: CloudFrontHeaders, cookieName: string) {
-    const cookieHeader = headers.cookie
-
-    if (!cookieHeader) {
-        return null
-    }
-
-    for (const cookieSet of cookieHeader) {
-        const cookies = cookieSet.value.split(/; /)
-
-        for (const cookie of cookies) {
-            const cookieKeyValue = cookie.split('=')
-
-            if (cookieKeyValue[0] === cookieName) {
-                return cookieKeyValue[1]
-            }
-        }
-    }
-
-    return null
 }

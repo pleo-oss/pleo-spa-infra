@@ -1,5 +1,6 @@
 import {CloudFrontRequestEvent} from 'aws-lambda'
 import S3 from 'aws-sdk/clients/s3'
+import {DEFAULT_TRANSLATION_CURSOR} from '../utils'
 import {getHandler} from './viewer-request'
 
 jest.mock('aws-sdk/clients/s3', () => jest.fn().mockReturnValue({getObject: jest.fn()}))
@@ -9,7 +10,7 @@ beforeEach(() => jest.resetAllMocks())
 
 describe(`Viewer request Lambda@Edge`, () => {
     test(`
-        When requesting app.example.com 
+        When requesting app.example.com
         it modifies the request to fetch the latest master branch HTML
     `, async () => {
         const treeHash = '3b6197b16baa26057a25fcd5d60a64c4c0765d18'
@@ -345,7 +346,10 @@ describe(`Viewer request Lambda@Edge`, () => {
         const translationHash = '123456'
         const s3 = new MockedS3()
         s3.getObject = jest.fn().mockReturnValue({
-            promise: jest.fn().mockRejectedValue(new Error('network error, yo'))
+            promise: jest
+                .fn()
+                .mockReturnValueOnce(new Error('network error, yo'))
+                .mockReturnValueOnce({Body: translationHash})
         })
         jest.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -384,6 +388,61 @@ describe(`Viewer request Lambda@Edge`, () => {
                     uri: `/404`,
                     treeHash,
                     translationHash
+                })
+            )
+        )
+        expect(console.error).toHaveBeenCalledTimes(1)
+    })
+
+    test(`
+        When receive an error for the request getting translation hash,
+        translation hash value is defauted to the 'default' value
+    `, async () => {
+        const treeHash = 'treebe8eaa4f0bb422d1c171769f674c5a1dd1c'
+        const translationHash = '123456'
+        const s3 = new MockedS3()
+        s3.getObject = jest.fn().mockReturnValue({
+            promise: jest
+                .fn()
+                .mockReturnValueOnce({Body: treeHash})
+                .mockReturnValueOnce(new Error('network error, yo'))
+        })
+        jest.spyOn(console, 'error').mockImplementation(() => {})
+
+        const handler = getHandler(
+            {
+                originBucketName: 'test-origin-bucket-prod',
+                originBucketRegion: 'eu-west-1'
+            },
+            s3
+        )
+        const event = mockRequestEvent({
+            host: 'app.example.com',
+            translationHash,
+            treeHash
+        })
+
+        const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(2)
+
+        expect(s3.getObject).toHaveBeenCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: `deploys/master`
+        })
+
+        expect(s3.getObject).toHaveBeenLastCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: 'translation-deploy/latest'
+        })
+
+        expect(response).toEqual(
+            requestFromEvent(
+                mockRequestEvent({
+                    host: 'app.example.com',
+                    translationHash: DEFAULT_TRANSLATION_CURSOR,
+                    treeHash,
+                    uri: `/html/${treeHash}/index.html`
                 })
             )
         )

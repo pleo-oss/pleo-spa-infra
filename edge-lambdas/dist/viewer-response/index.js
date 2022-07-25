@@ -120,7 +120,7 @@ function getHandler(config) {
         response = addSecurityHeaders(response, config);
         response = addCacheHeader(response);
         response = addRobotsHeader(response, config);
-        response = addCookieHeader(response, translationCursor);
+        response = setTranslationHashCookie(response, translationCursor);
         if (translationCursor !== DEFAULT_TRANSLATION_CURSOR) {
             response = addPreloadHeader(response, request, translationCursor, treeHash);
         }
@@ -169,7 +169,7 @@ const addRobotsHeader = (response, config) => {
 /**
  * Adds cookie 'translation-hash' with value of latest translation cursor
  */
-const addCookieHeader = (response, translationCursor) => {
+const setTranslationHashCookie = (response, translationCursor) => {
     let headers = response.headers;
     headers = setHeader(headers, 'Set-Cookie', `translation-hash=${translationCursor}`);
     return Object.assign(Object.assign({}, response), { headers });
