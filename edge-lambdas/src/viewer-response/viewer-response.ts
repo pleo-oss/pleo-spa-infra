@@ -1,6 +1,17 @@
-import {CloudFrontResponse, CloudFrontResponseHandler} from 'aws-lambda'
+import {
+    CloudFrontResponse,
+    CloudFrontResponseHandler,
+    CloudFrontHeaders,
+    CloudFrontRequest
+} from 'aws-lambda'
 import {Config} from '../config'
-import {setHeader} from '../utils'
+import {
+    setHeader,
+    getHeader,
+    TRANSLATION_CURSOR_HEADER,
+    TREE_HASH_HEADER,
+    getCookie
+} from '../utils'
 
 /**
  * Edge Lambda handler triggered on "viewer-response" event, on the default CF behavior of the web app CF distribution.
@@ -14,10 +25,21 @@ import {setHeader} from '../utils'
 export function getHandler(config: Config) {
     const handler: CloudFrontResponseHandler = async (event) => {
         let response = event.Records[0].cf.response
+        const request = event.Records[0].cf.request
 
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
+
+        if (config.isLocalised === 'true') {
+            const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER)
+            const treeHash = getHeader(request, TREE_HASH_HEADER)
+
+            response = setTranslationHashCookie(response, translationCursor)
+            if (Boolean(translationCursor)) {
+                response = addPreloadHeader(response, request, translationCursor, treeHash)
+            }
+        }
 
         return response
     }
@@ -68,6 +90,49 @@ export const addRobotsHeader = (response: CloudFrontResponse, config: Config) =>
     if (config.blockRobots === 'true') {
         headers = setHeader(headers, 'X-Robots-Tag', 'noindex, nofollow')
     }
+
+    return {...response, headers}
+}
+
+/**
+ * Adds cookie 'translation-hash' with value of latest translation cursor
+ */
+export const setTranslationHashCookie = (
+    response: CloudFrontResponse,
+    translationCursor: string
+) => {
+    let headers = response.headers
+
+    headers = setHeader(headers, 'Set-Cookie', `translation-hash=${translationCursor}`)
+
+    return {...response, headers}
+}
+
+/**
+ * Adds preload header for translation file to speed up rendering of the app,
+ * since translation file is the required for it.
+ * We get the language from the 'x-pleo-language' cookie
+ * which is in sync with the user language to preload translation file with the language of the app.
+ * But it is possible to override user&app language with the 'lang' url param,
+ * since this overriding won't be refltected in the cookie yet, we get the language from this param 'lang'
+ * If both, url param & cookie are empty, it means that language is not chosen by any form, which means that the app will be in 'en'
+ */
+export const addPreloadHeader = (
+    response: CloudFrontResponse,
+    request: CloudFrontRequest,
+    translationCursor: string,
+    treeHash: string
+) => {
+    let headers = response.headers
+    const urlParams = new URLSearchParams(request.querystring)
+    const language = urlParams.get('lang') || getCookie(request.headers, 'x-pleo-language') || 'en'
+    const hash = language === 'en' ? treeHash : translationCursor
+
+    headers = setHeader(
+        headers,
+        'Link',
+        `</static/translations/${language}/messages.${hash}.js>; rel="preload"; as="script"`
+    )
 
     return {...response, headers}
 }

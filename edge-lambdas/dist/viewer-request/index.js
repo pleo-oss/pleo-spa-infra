@@ -104,6 +104,30 @@ function getHeader(request, headerName) {
     var _a, _b, _c;
     return (_c = (_b = (_a = request.headers) === null || _a === void 0 ? void 0 : _a[headerName.toLowerCase()]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.value;
 }
+const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor';
+const TREE_HASH_HEADER = 'X-Tree-Hash';
+/**
+ * Extract the value of a specific cookie from CloudFront headers map, if present
+ * @param headers - CloudFront headers map
+ * @param cookieName - The key of the cookie to extract the value for
+ * @returns The string value of the cookie if present, otherwise null
+ */
+function getCookie(headers, cookieName) {
+    const cookieHeader = headers.cookie;
+    if (!cookieHeader) {
+        return null;
+    }
+    for (const cookieSet of cookieHeader) {
+        const cookies = cookieSet.value.split(/; /);
+        for (const cookie of cookies) {
+            const cookieKeyValue = cookie.split('=');
+            if (cookieKeyValue[0] === cookieName) {
+                return cookieKeyValue[1];
+            }
+        }
+    }
+    return null;
+}
 
 ;// CONCATENATED MODULE: ./src/viewer-request/viewer-request.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -134,8 +158,20 @@ function getHandler(config, s3) {
     const handler = (event) => __awaiter(this, void 0, void 0, function* () {
         const request = event.Records[0].cf.request;
         try {
+            // Get tree hash and translation cursor in parralel to avoid the double network penalty
+            const [treeHash, translationCursor] = yield Promise.all([
+                getTreeHash(request, config, s3),
+                config.isLocalised === 'true'
+                    ? fetchDeploymentTranslationHash(s3, config)
+                    : undefined
+            ].filter((val) => Boolean(val)));
+            const uri = getUri(request, treeHash);
             // We instruct the CDN to return a file that corresponds to the tree hash requested
-            request.uri = yield getUri(request, config, s3);
+            request.uri = uri;
+            if (config.isLocalised === 'true') {
+                request.headers = setHeader(request.headers, TRANSLATION_CURSOR_HEADER, translationCursor);
+                request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash);
+            }
         }
         catch (e) {
             console.error(e);
@@ -148,31 +184,28 @@ function getHandler(config, s3) {
     return handler;
 }
 // We respond with a requested file, but prefix it with the hash of the current active deployment
-function getUri(request, config, s3) {
+function getUri(request, treeHash) {
+    // If the
+    // - request uri is for a specific file (e.g. "/iframe.html")
+    // - or is a request on one of the .well-known paths (like .well-known/apple-app-site-association)
+    // we serve the requested file.
+    // Otherwise, for requests uris like "/" or "my-page" we serve the top-level index.html file,
+    // which assumes the routing is handled client-side.
+    const isFileRequest = request.uri.split('/').pop().includes('.');
+    const isWellKnownRequest = request.uri.startsWith('/.well-known/');
+    const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
+    return external_path_namespaceObject.join('/html', treeHash, filePath);
+}
+// We use repository tree hash to identify the version of the HTML served.
+// It can be either a specific tree hash requested via preview link with a hash, or the latest
+// tree hash for a branch requested (preview or main), which we fetch from cursor files stored in S3
+function getTreeHash(request, config, s3) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const host = getHeader(request, 'host');
         if (!host) {
             throw new Error('Missing Host header');
         }
-        const treeHash = yield getTreeHash(host, config, s3);
-        // If the
-        // - request uri is for a specific file (e.g. "/iframe.html")
-        // - or is a request on one of the .well-known paths (like .well-known/apple-app-site-association)
-        // we serve the requested file.
-        // Otherwise, for requests uris like "/" or "my-page" we serve the top-level index.html file,
-        // which assumes the routing is handled client-side.
-        const isFileRequest = request.uri.split('/').pop().includes('.');
-        const isWellKnownRequest = request.uri.startsWith('/.well-known/');
-        const filePath = isFileRequest || isWellKnownRequest ? request.uri : '/index.html';
-        return external_path_namespaceObject.join('/html', treeHash, filePath);
-    });
-}
-// We use repository tree hash to identify the version of the HTML served.
-// It can be either a specific tree hash requested via preview link with a hash, or the latest
-// tree hash for a branch requested (preview or main), which we fetch from cursor files stored in S3
-function getTreeHash(host, config, s3) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
         // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.example.com
         // Preview name is either a sanitized branch name or it follows the preview-[treeHash] pattern
         let previewName;
@@ -198,22 +231,51 @@ function getPreviewHash(previewName) {
     return (_a = matchHash === null || matchHash === void 0 ? void 0 : matchHash.groups) === null || _a === void 0 ? void 0 : _a.hash;
 }
 /**
+ * Fetches a file from the S3 origin bucket and returns its content
+ * @param key key for the S3 bucket
+ * @param onEmpty function will be called if file doesn't exist
+ * @param config config object
+ * @param s3 S3 instance
+ * @returns content of the file
+ */
+function fetchFileFromOriginBucket(key, config, s3) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const s3Params = {
+            Bucket: config.originBucketName,
+            Key: key
+        };
+        const response = yield s3.getObject(s3Params).promise();
+        if (!response.Body) {
+            throw new Error();
+        }
+        return response.Body.toString('utf-8').trim();
+    });
+}
+/**
  * Fetches a cursor deploy file from the S3 bucket and returns its content (i.e. the current active tree hash
  * for that branch).
  */
 function fetchDeploymentTreeHash(branch, config, s3) {
     return __awaiter(this, void 0, void 0, function* () {
-        const s3Params = {
-            Bucket: config.originBucketName,
-            Key: `deploys/${branch}`
-        };
-        const response = yield s3.getObject(s3Params).promise();
-        if (!response.Body) {
+        try {
+            const response = yield fetchFileFromOriginBucket(`deploys/${branch}`, config, s3);
+            return response;
+        }
+        catch (_a) {
             throw new Error(`Cursor file not found for branch=${branch}`);
         }
-        return response.Body.toString('utf-8').trim();
     });
 }
+// Get the latest translation cursor file from S3 bucket
+const fetchDeploymentTranslationHash = (s3, config) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const response = yield fetchFileFromOriginBucket(`translation-deploy/latest`, config, s3);
+        return response;
+    }
+    catch (_a) {
+        throw new Error(`Latest translation cursor file not found`);
+    }
+});
 
 ;// CONCATENATED MODULE: ./src/viewer-request/index.ts
 

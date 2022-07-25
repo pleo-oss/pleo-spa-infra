@@ -31,3 +31,33 @@ export function setHeader(
 export function getHeader(request: CloudFrontRequest, headerName: string): string | undefined {
     return request.headers?.[headerName.toLowerCase()]?.[0]?.value
 }
+
+export const TRANSLATION_CURSOR_HEADER = 'X-Translation-Cursor'
+export const TREE_HASH_HEADER = 'X-Tree-Hash'
+/**
+ * Extract the value of a specific cookie from CloudFront headers map, if present
+ * @param headers - CloudFront headers map
+ * @param cookieName - The key of the cookie to extract the value for
+ * @returns The string value of the cookie if present, otherwise null
+ */
+export function getCookie(headers: CloudFrontHeaders, cookieName: string) {
+    const cookieHeader = headers.cookie
+
+    if (!cookieHeader) {
+        return null
+    }
+
+    for (const cookieSet of cookieHeader) {
+        const cookies = cookieSet.value.split(/; /)
+
+        for (const cookie of cookies) {
+            const cookieKeyValue = cookie.split('=')
+
+            if (cookieKeyValue[0] === cookieName) {
+                return cookieKeyValue[1]
+            }
+        }
+    }
+
+    return null
+}

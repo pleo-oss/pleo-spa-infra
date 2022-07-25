@@ -3,7 +3,7 @@ import * as path from 'path'
 import {CloudFrontRequest, CloudFrontRequestHandler} from 'aws-lambda'
 import S3 from 'aws-sdk/clients/s3'
 
-import {getHeader} from '../utils'
+import {getHeader, setHeader, TRANSLATION_CURSOR_HEADER, TREE_HASH_HEADER} from '../utils'
 import {Config} from '../config'
 
 const DEFAULT_BRANCH_DEFAULT_NAME = 'master'
@@ -25,8 +25,30 @@ export function getHandler(config: Config, s3: S3) {
         const request = event.Records[0].cf.request
 
         try {
+            // Get tree hash and translation cursor in parralel to avoid the double network penalty
+            const [treeHash, translationCursor] = await Promise.all(
+                [
+                    getTreeHash(request, config, s3),
+                    config.isLocalised === 'true'
+                        ? fetchDeploymentTranslationHash(s3, config)
+                        : undefined
+                ].filter((val) => Boolean(val))
+            )
+
+            const uri = getUri(request, treeHash)
+
             // We instruct the CDN to return a file that corresponds to the tree hash requested
-            request.uri = await getUri(request, config, s3)
+            request.uri = uri
+
+            if (config.isLocalised === 'true') {
+                request.headers = setHeader(
+                    request.headers,
+                    TRANSLATION_CURSOR_HEADER,
+                    translationCursor
+                )
+
+                request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash)
+            }
         } catch (e) {
             console.error(e)
             // On failure, we're requesting a non-existent file on purpose, to allow CF to serve
@@ -41,15 +63,7 @@ export function getHandler(config: Config, s3: S3) {
 }
 
 // We respond with a requested file, but prefix it with the hash of the current active deployment
-async function getUri(request: CloudFrontRequest, config: Config, s3: S3) {
-    const host = getHeader(request, 'host')
-
-    if (!host) {
-        throw new Error('Missing Host header')
-    }
-
-    const treeHash = await getTreeHash(host, config, s3)
-
+function getUri(request: CloudFrontRequest, treeHash: string) {
     // If the
     // - request uri is for a specific file (e.g. "/iframe.html")
     // - or is a request on one of the .well-known paths (like .well-known/apple-app-site-association)
@@ -66,7 +80,13 @@ async function getUri(request: CloudFrontRequest, config: Config, s3: S3) {
 // We use repository tree hash to identify the version of the HTML served.
 // It can be either a specific tree hash requested via preview link with a hash, or the latest
 // tree hash for a branch requested (preview or main), which we fetch from cursor files stored in S3
-async function getTreeHash(host: string, config: Config, s3: S3) {
+async function getTreeHash(request: CloudFrontRequest, config: Config, s3: S3) {
+    const host = getHeader(request, 'host')
+
+    if (!host) {
+        throw new Error('Missing Host header')
+    }
+
     // Preview name is the first segment of the url e.g. my-branch for my-branch.app.staging.example.com
     // Preview name is either a sanitized branch name or it follows the preview-[treeHash] pattern
     let previewName
@@ -96,18 +116,45 @@ function getPreviewHash(previewName?: string) {
 }
 
 /**
+ * Fetches a file from the S3 origin bucket and returns its content
+ * @param key key for the S3 bucket
+ * @param onEmpty function will be called if file doesn't exist
+ * @param config config object
+ * @param s3 S3 instance
+ * @returns content of the file
+ */
+async function fetchFileFromOriginBucket(key: string, config: Config, s3: S3) {
+    const s3Params = {
+        Bucket: config.originBucketName,
+        Key: key
+    }
+    const response = await s3.getObject(s3Params).promise()
+    if (!response.Body) {
+        throw new Error()
+    }
+
+    return response.Body.toString('utf-8').trim()
+}
+
+/**
  * Fetches a cursor deploy file from the S3 bucket and returns its content (i.e. the current active tree hash
  * for that branch).
  */
 async function fetchDeploymentTreeHash(branch: string, config: Config, s3: S3) {
-    const s3Params = {
-        Bucket: config.originBucketName,
-        Key: `deploys/${branch}`
-    }
-    const response = await s3.getObject(s3Params).promise()
-    if (!response.Body) {
+    try {
+        const response = await fetchFileFromOriginBucket(`deploys/${branch}`, config, s3)
+        return response
+    } catch {
         throw new Error(`Cursor file not found for branch=${branch}`)
     }
+}
 
-    return response.Body.toString('utf-8').trim()
+// Get the latest translation cursor file from S3 bucket
+export const fetchDeploymentTranslationHash = async (s3: S3, config: Config) => {
+    try {
+        const response = await fetchFileFromOriginBucket(`translation-deploy/latest`, config, s3)
+        return response
+    } catch {
+        throw new Error(`Latest translation cursor file not found`)
+    }
 }
