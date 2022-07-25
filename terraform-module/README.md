@@ -76,6 +76,7 @@ No resources.
 |------|-------------|------|---------|:--------:|
 | <a name="input_app_name"></a> [app\_name](#input\_app\_name) | Name of the app (kebab-case) | `string` | n/a | yes |
 | <a name="input_block_iframes"></a> [block\_iframes](#input\_block\_iframes) | Should add custom header blocking access via iframes? | `bool` | `true` | no |
+| <a name="input_is_localised"></a> [is\_localise](#input\_is\_localised) | Should fetch translation hash and add cookie & preload header for translation files? | `bool` | `true` | no |
 | <a name="input_bucket_prefix"></a> [bucket\_prefix](#input\_bucket\_prefix) | Prefix for the bucket name. Since S3 bucket live in global scope, it's good prefix it with e.g. your org name | `string` | n/a | yes |
 | <a name="input_default_repo_branch_name"></a> [default\_repo\_branch\_name](#input\_default\_repo\_branch\_name) | Name of the default branch of the project repo | `string` | `"master"` | no |
 | <a name="input_env"></a> [env](#input\_env) | Environment (production/staging) | `string` | n/a | yes |
