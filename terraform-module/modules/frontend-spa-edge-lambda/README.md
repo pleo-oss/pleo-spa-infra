@@ -70,13 +70,13 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_app_name"></a> [app\_name](#input\_app\_name) | Name of the app (kebab-case) | `string` | n/a | yes |
 | <a name="input_block_iframes"></a> [block\_iframes](#input\_block\_iframes) | Should add custom header blocking access via iframes? | `bool` | `true` | no |
-| <a name="input_is_localised"></a> [is\_localise](#input\_is\_localised) | Should fetch translation hash and add cookie & preload header for translation files? | `bool` | `true` | no |
 | <a name="input_bucket_name"></a> [bucket\_name](#input\_bucket\_name) | Name of the S3 origin bucket | `string` | n/a | yes |
 | <a name="input_bucket_region"></a> [bucket\_region](#input\_bucket\_region) | AWS region where the origin bucket is located | `string` | `"eu-west-1"` | no |
 | <a name="input_default_repo_branch_name"></a> [default\_repo\_branch\_name](#input\_default\_repo\_branch\_name) | Name of the default branch of the project repo | `string` | `"master"` | no |
 | <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | App domain name | `string` | n/a | yes |
 | <a name="input_env"></a> [env](#input\_env) | Environment (production/staging) | `string` | n/a | yes |
 | <a name="input_event_type"></a> [event\_type](#input\_event\_type) | Type of the Lambda@Edge (viewer-request, viewer-response, origin-request, origin-response) | `string` | n/a | yes |
+| <a name="input_is_localised"></a> [is\_localised](#input\_is\_localised) | Should fetch translation hash and add cookie & preload header for translation files? | `bool` | `true` | no |
 | <a name="input_role_arn"></a> [role\_arn](#input\_role\_arn) | ARN of the lambda execution role | `string` | n/a | yes |
 
 #### Outputs
