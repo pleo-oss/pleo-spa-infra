@@ -26,23 +26,29 @@ export function getHandler(config: Config, s3: S3) {
 
         try {
             // Get tree hash and translation cursor in parralel to avoid the double network penalty
-            const [treeHash, translationCursor] = await Promise.all([
-                getTreeHash(request, config, s3),
-                fetchDeploymentTranslationHash(s3, config)
-            ])
+            const [treeHash, translationCursor] = await Promise.all(
+                [
+                    getTreeHash(request, config, s3),
+                    config.isLocalised === 'true'
+                        ? fetchDeploymentTranslationHash(s3, config)
+                        : undefined
+                ].filter((val) => Boolean(val))
+            )
 
             const uri = getUri(request, treeHash)
 
             // We instruct the CDN to return a file that corresponds to the tree hash requested
             request.uri = uri
 
-            request.headers = setHeader(
-                request.headers,
-                TRANSLATION_CURSOR_HEADER,
-                translationCursor
-            )
+            if (config.isLocalised === 'true') {
+                request.headers = setHeader(
+                    request.headers,
+                    TRANSLATION_CURSOR_HEADER,
+                    translationCursor
+                )
 
-            request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash)
+                request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash)
+            }
         } catch (e) {
             console.error(e)
             // On failure, we're requesting a non-existent file on purpose, to allow CF to serve

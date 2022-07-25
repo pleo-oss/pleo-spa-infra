@@ -16,5 +16,6 @@ export type Config = {
     previewDeploymentPostfix?: string
     defaultBranchName?: string
     blockIframes?: string
+    isLocalised?: string
     blockRobots?: string
 }

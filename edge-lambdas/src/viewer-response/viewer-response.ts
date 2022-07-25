@@ -27,16 +27,18 @@ export function getHandler(config: Config) {
         let response = event.Records[0].cf.response
         const request = event.Records[0].cf.request
 
-        const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER)
-
-        const treeHash = getHeader(request, TREE_HASH_HEADER)
-
         response = addSecurityHeaders(response, config)
         response = addCacheHeader(response)
         response = addRobotsHeader(response, config)
-        response = setTranslationHashCookie(response, translationCursor)
-        if (Boolean(translationCursor)) {
-            response = addPreloadHeader(response, request, translationCursor, treeHash)
+
+        if (config.isLocalised === 'true') {
+            const translationCursor = getHeader(request, TRANSLATION_CURSOR_HEADER)
+            const treeHash = getHeader(request, TREE_HASH_HEADER)
+
+            response = setTranslationHashCookie(response, translationCursor)
+            if (Boolean(translationCursor)) {
+                response = addPreloadHeader(response, request, translationCursor, treeHash)
+            }
         }
 
         return response

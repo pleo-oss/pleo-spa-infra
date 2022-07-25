@@ -19,7 +19,8 @@ describe(`Viewer request Lambda@Edge`, () => {
         const handler = getHandler(
             {
                 originBucketName: 'test-origin-bucket-prod',
-                originBucketRegion: 'eu-west-1'
+                originBucketRegion: 'eu-west-1',
+                isLocalised: 'true'
             },
             s3
         )
@@ -56,6 +57,46 @@ describe(`Viewer request Lambda@Edge`, () => {
     })
 
     test(`
+        No 'X-Translation-Cursor' & 'X-Tree-Hash' added when isLocalised='false' and no request to S3 to /latest translation hash
+    `, async () => {
+        const treeHash = '3b6197b16baa26057a25fcd5d60a64c4c0765d18'
+        const s3 = new MockedS3()
+        s3.getObject = jest.fn().mockReturnValue({
+            promise: jest.fn().mockReturnValue({Body: treeHash})
+        })
+
+        const handler = getHandler(
+            {
+                originBucketName: 'test-origin-bucket-prod',
+                originBucketRegion: 'eu-west-1',
+                isLocalised: 'false'
+            },
+            s3
+        )
+        const event = mockRequestEvent({
+            host: 'app.example.com'
+        })
+
+        const response = await handler(event, {} as any, () => {})
+
+        expect(s3.getObject).toHaveBeenCalledTimes(1)
+
+        expect(s3.getObject).toHaveBeenCalledWith({
+            Bucket: 'test-origin-bucket-prod',
+            Key: `deploys/master`
+        })
+
+        expect(response).toEqual(
+            requestFromEvent(
+                mockRequestEvent({
+                    host: 'app.example.com',
+                    uri: `/html/${treeHash}/index.html`
+                })
+            )
+        )
+    })
+
+    test(`
         When requesting app.example.com
         and a custom default branch name is configured
         it modifies the request to fetch the latest default branch HTML
@@ -68,7 +109,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-prod',
                 originBucketRegion: 'eu-west-1',
-                defaultBranchName: 'main'
+                defaultBranchName: 'main',
+                isLocalised: 'true'
             },
             s3
         )
@@ -116,7 +158,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -164,7 +207,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -208,7 +252,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -253,7 +298,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -306,7 +352,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -356,7 +403,8 @@ describe(`Viewer request Lambda@Edge`, () => {
             {
                 originBucketName: 'test-origin-bucket-staging',
                 originBucketRegion: 'eu-west-1',
-                previewDeploymentPostfix: '.app.staging.example.com'
+                previewDeploymentPostfix: '.app.staging.example.com',
+                isLocalised: 'true'
             },
             s3
         )
@@ -411,7 +459,8 @@ describe(`Viewer request Lambda@Edge`, () => {
         const handler = getHandler(
             {
                 originBucketName: 'test-origin-bucket-prod',
-                originBucketRegion: 'eu-west-1'
+                originBucketRegion: 'eu-west-1',
+                isLocalised: 'true'
             },
             s3
         )
@@ -478,8 +527,8 @@ const mockRequestEvent = ({
     uri = '/'
 }: {
     host: string
-    treeHash: string
-    translationHash: string
+    treeHash?: string
+    translationHash?: string
     uri?: string
 }): CloudFrontRequestEvent => ({
     Records: [
@@ -512,18 +561,22 @@ const mockRequestEvent = ({
                                 value: '*/*'
                             }
                         ],
-                        'x-translation-cursor': [
-                            {
-                                key: 'X-Translation-Cursor',
-                                value: translationHash
-                            }
-                        ],
-                        'x-tree-hash': [
-                            {
-                                key: 'X-Tree-Hash',
-                                value: treeHash
-                            }
-                        ]
+                        'x-translation-cursor': translationHash
+                            ? [
+                                  {
+                                      key: 'X-Translation-Cursor',
+                                      value: translationHash
+                                  }
+                              ]
+                            : undefined,
+                        'x-tree-hash': treeHash
+                            ? [
+                                  {
+                                      key: 'X-Tree-Hash',
+                                      value: treeHash
+                                  }
+                              ]
+                            : undefined
                     },
                     method: 'GET',
                     querystring: '',

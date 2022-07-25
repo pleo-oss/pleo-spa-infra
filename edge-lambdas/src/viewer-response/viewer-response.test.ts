@@ -5,7 +5,8 @@ describe(`Viewer response Lambda@Edge`, () => {
     test(`Adds security and cache control custom headers to a response object for prod`, async () => {
         const handler = getHandler({
             originBucketName: 'test-cursor-bucket-prod',
-            originBucketRegion: 'eu-west-1'
+            originBucketRegion: 'eu-west-1',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.example.com'})
@@ -26,7 +27,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket-staging',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.staging.example.com',
-            blockRobots: 'true'
+            blockRobots: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com'})
@@ -49,7 +51,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
-            blockIframes: 'true'
+            blockIframes: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com'})
@@ -73,7 +76,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
-            blockIframes: 'true'
+            blockIframes: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com', hash})
@@ -91,6 +95,29 @@ describe(`Viewer response Lambda@Edge`, () => {
         })
     })
 
+    test(`No preload headers and no update hash value for 'translation-hash' cookie when isLocalised='false'`, async () => {
+        const handler = getHandler({
+            originBucketName: 'test-origin-bucket',
+            originBucketRegion: 'eu-west-1',
+            previewDeploymentPostfix: '.app.example.com',
+            blockIframes: 'true',
+            isLocalised: 'false'
+        })
+
+        const event = mockResponseEvent({host: 'app.staging.example.com'})
+
+        expect(await handler(event, {} as any, () => {})).toEqual({
+            headers: {
+                ...securityHeaders,
+                'x-frame-options': [{key: 'X-Frame-Options', value: 'DENY'}],
+                ...defaultHeaders,
+                ...cacheControlHeaders
+            },
+            status: '200',
+            statusDescription: 'OK'
+        })
+    })
+
     test(`Add preload headers and update hash value from tree hash for en instead of 'translation-hash'`, async () => {
         const hash = '123123'
         const translationHash = '456456'
@@ -98,7 +125,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
-            blockIframes: 'true'
+            blockIframes: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com', hash, translationHash})
@@ -122,7 +150,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
-            blockIframes: 'true'
+            blockIframes: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({host: 'app.staging.example.com', hash, language: 'da'})
@@ -146,7 +175,8 @@ describe(`Viewer response Lambda@Edge`, () => {
             originBucketName: 'test-origin-bucket',
             originBucketRegion: 'eu-west-1',
             previewDeploymentPostfix: '.app.example.com',
-            blockIframes: 'true'
+            blockIframes: 'true',
+            isLocalised: 'true'
         })
 
         const event = mockResponseEvent({

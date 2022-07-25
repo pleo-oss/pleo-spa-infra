@@ -161,13 +161,17 @@ function getHandler(config, s3) {
             // Get tree hash and translation cursor in parralel to avoid the double network penalty
             const [treeHash, translationCursor] = yield Promise.all([
                 getTreeHash(request, config, s3),
-                fetchDeploymentTranslationHash(s3, config)
-            ]);
+                config.isLocalised === 'true'
+                    ? fetchDeploymentTranslationHash(s3, config)
+                    : undefined
+            ].filter((val) => Boolean(val)));
             const uri = getUri(request, treeHash);
             // We instruct the CDN to return a file that corresponds to the tree hash requested
             request.uri = uri;
-            request.headers = setHeader(request.headers, TRANSLATION_CURSOR_HEADER, translationCursor);
-            request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash);
+            if (config.isLocalised === 'true') {
+                request.headers = setHeader(request.headers, TRANSLATION_CURSOR_HEADER, translationCursor);
+                request.headers = setHeader(request.headers, TREE_HASH_HEADER, treeHash);
+            }
         }
         catch (e) {
             console.error(e);
@@ -227,7 +231,7 @@ function getPreviewHash(previewName) {
     return (_a = matchHash === null || matchHash === void 0 ? void 0 : matchHash.groups) === null || _a === void 0 ? void 0 : _a.hash;
 }
 /**
- * Function to get file from S3 Bucket
+ * Fetches a file from the S3 origin bucket and returns its content
  * @param key key for the S3 bucket
  * @param onEmpty function will be called if file doesn't exist
  * @param config config object
